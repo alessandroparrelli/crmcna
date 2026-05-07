@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Dettaglio Campagna</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div id="app">
+  <div id="hdr"></div>
+  <div class="tabs-bar" id="nav"></div>
+  <div class="page active">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 id="titolo">Campagna</h2>
+      <button class="btn btn-secondary" onclick="history.back()">← Indietro</button>
+    </div>
+
+    <!-- Aggiungi lead (admin/supervisore) -->
+    <div id="add-box" style="display:none" class="upload-card">
+      <h3 class="upload-title">➕ Aggiungi Lead</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:flex-end">
+        <div><label class="filter-group" style="display:block"><span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Ragione Sociale</span></label>
+          <input type="text" class="form-input" id="a-rag" placeholder="Azienda"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Telefono</label>
+          <input type="text" class="form-input" id="a-tel" placeholder="+39..."></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Assegna a</label>
+          <select class="form-input" id="a-op"><option value="">Nessuno</option></select></div>
+        <button class="btn btn-primary" onclick="addLead()">➕ Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>STATO</label>
+        <select class="form-input" id="f-stato" onchange="render()">
+          <option value="">Tutti</option>
+          <option value="da_lavorare">Da Lavorare</option>
+          <option value="contattato">Contattato</option>
+          <option value="da_richiamare">Da Richiamare</option>
+          <option value="ko">KO</option>
+          <option value="contratto_generato">Contratto Generato</option>
+        </select>
+      </div>
+      <div class="filter-group" id="f-op-wrap" style="display:none">
+        <label>OPERATORE</label>
+        <select class="form-input" id="f-op" onchange="render()">
+          <option value="">Tutti</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="kpi-strip">
+      <div class="kpi-card c1"><div class="kpi-label">Leads Totali</div><div class="kpi-value" id="k1">0</div></div>
+      <div class="kpi-card c2"><div class="kpi-label">Da Lavorare</div><div class="kpi-value" id="k2">0</div></div>
+      <div class="kpi-card c3"><div class="kpi-label">Contattati</div><div class="kpi-value" id="k3">0</div></div>
+      <div class="kpi-card c4"><div class="kpi-label">Contratti</div><div class="kpi-value" id="k4">0</div></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><h3>📞 Leads</h3><span id="cnt">0</span></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Ragione Sociale</th><th>Telefono</th><th>Stato</th><th>Operatore</th><th>Ultimo Contatto</th><th>Note</th><th>Azioni</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:32px;width:90%;max-width:500px">
+    <h3 id="m-titolo" style="margin-bottom:20px">Gestisci Lead</h3>
+    <div class="form-group">
+      <label>Stato</label>
+      <select class="form-input" id="m-stato">
+        <option value="da_lavorare">Da Lavorare</option>
+        <option value="contattato">Contattato</option>
+        <option value="da_richiamare">Da Richiamare</option>
+        <option value="ko">KO</option>
+        <option value="contratto_generato">Contratto Generato</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Note</label>
+      <textarea class="form-input" id="m-note" rows="3" placeholder="Note..."></textarea>
+    </div>
+    <div class="form-group" id="m-op-wrap" style="display:none">
+      <label>Assegna a</label>
+      <select class="form-input" id="m-op"><option value="">Nessuno</option></select>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:20px">
+      <button class="btn btn-primary" onclick="saveModal()">💾 Salva</button>
+      <button class="btn btn-secondary" onclick="closeModal()">✕ Annulla</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/crm.js"></script>
+<script>
+const me = Auth.check('../index.html');
+document.getElementById('hdr').innerHTML = buildHeader(me);
+document.getElementById('nav').innerHTML = buildNav('🎯 Campagne', '../');
+
+const cid = new URLSearchParams(location.search).get('id');
+if (!cid) { location.href = 'campagne.html'; }
+
+let leads = [], operatori = [], editId = null;
+
+async function init() {
+  try {
+    const camps = await api('campaigns?id=eq.' + cid + '&select=nome');
+    if (camps.length) document.getElementById('titolo').textContent = '📋 ' + camps[0].nome;
+
+    operatori = await api('cna_users?ruolo=eq.utente&attivo=eq.true&select=id,nome,cognome&order=nome');
+    
+    const opOpts = operatori.map(o => '<option value="' + o.id + '">' + o.nome + ' ' + o.cognome + '</option>').join('');
+    document.getElementById('a-op').innerHTML = '<option value="">Nessuno</option>' + opOpts;
+    document.getElementById('m-op').innerHTML = '<option value="">Nessuno</option>' + opOpts;
+    document.getElementById('f-op').innerHTML = '<option value="">Tutti</option>' + opOpts;
+
+    if (me.ruolo === 'admin' || me.ruolo === 'supervisore') {
+      document.getElementById('add-box').style.display = 'block';
+      document.getElementById('f-op-wrap').style.display = 'block';
+      document.getElementById('m-op-wrap').style.display = 'block';
+    }
+
+    let q = 'campaign_leads?campaign_id=eq.' + cid + '&select=*&order=created_at.desc';
+    if (me.ruolo === 'utente') q += '&assegnato_a=eq.' + me.id;
+    leads = await api(q);
+    render();
+  } catch(ex) {
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="color:#EF4444;padding:20px">Errore: ' + ex.message + '</td></tr>';
+  }
+}
+
+function render() {
+  let list = leads.slice();
+  const fs = document.getElementById('f-stato').value;
+  if (fs) list = list.filter(l => l.stato === fs);
+  if (me.ruolo !== 'utente') {
+    const fo = document.getElementById('f-op').value;
+    if (fo) list = list.filter(l => l.assegnato_a === fo);
+  }
+
+  document.getElementById('k1').textContent = list.length;
+  document.getElementById('k2').textContent = list.filter(l => l.stato === 'da_lavorare' || !l.stato).length;
+  document.getElementById('k3').textContent = list.filter(l => l.stato === 'contattato' || l.stato === 'da_richiamare').length;
+  document.getElementById('k4').textContent = list.filter(l => l.stato === 'contratto_generato').length;
+  document.getElementById('cnt').textContent = list.length + ' leads';
+
+  const statoMap = { da_lavorare: '', contattato: 'success', da_richiamare: 'warning', ko: 'danger', contratto_generato: 'success' };
+  const tbody = document.getElementById('tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px">Nessun lead</td></tr>'; return; }
+  tbody.innerHTML = list.map(l => {
+    const op = operatori.find(o => o.id === l.assegnato_a);
+    const stato = l.stato || 'da_lavorare';
+    return '<tr>' +
+      '<td><strong>' + (l.ragione_sociale||'-') + '</strong></td>' +
+      '<td>' + (l.telefono||'-') + '</td>' +
+      '<td>' + badge(stato.replace(/_/g,' '), statoMap[stato]||'') + '</td>' +
+      '<td>' + (op ? op.nome + ' ' + op.cognome : '-') + '</td>' +
+      '<td>' + fmt_date(l.ultimo_contatto) + '</td>' +
+      '<td>' + (l.note ? l.note.substring(0,30)+'...' : '-') + '</td>' +
+      '<td><button class="btn btn-secondary" onclick="openModal(\'' + l.id + '\')">✏️</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function openModal(id) {
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  editId = id;
+  document.getElementById('m-titolo').textContent = l.ragione_sociale || 'Lead';
+  document.getElementById('m-stato').value = l.stato || 'da_lavorare';
+  document.getElementById('m-note').value = l.note || '';
+  if (me.ruolo === 'admin' || me.ruolo === 'supervisore') document.getElementById('m-op').value = l.assegnato_a || '';
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+
+async function saveModal() {
+  if (!editId) return;
+  try {
+    const updates = { stato: document.getElementById('m-stato').value, note: document.getElementById('m-note').value || null, ultimo_contatto: new Date().toISOString() };
+    if (me.ruolo === 'admin' || me.ruolo === 'supervisore') updates.assegnato_a = document.getElementById('m-op').value || null;
+    await api('campaign_leads?id=eq.' + editId, 'PATCH', updates);
+    const l = leads.find(x => x.id === editId);
+    if (l) Object.assign(l, updates);
+    closeModal();
+    render();
+  } catch(ex) { alert('Errore: ' + ex.message); }
+}
+
+async function addLead() {
+  const rag = document.getElementById('a-rag').value.trim();
+  if (!rag) { alert('Inserisci la ragione sociale'); return; }
+  try {
+    const op = document.getElementById('a-op').value;
+    const nl = await api('campaign_leads', 'POST', { campaign_id: cid, ragione_sociale: rag, telefono: document.getElementById('a-tel').value.trim() || null, assegnato_a: op || null, stato: 'da_lavorare', created_by: me.id });
+    document.getElementById('a-rag').value = ''; document.getElementById('a-tel').value = ''; document.getElementById('a-op').value = '';
+    if (nl && nl[0]) leads.unshift(nl[0]);
+    render();
+  } catch(ex) { alert('Errore: ' + ex.message); }
+}
+
+init();
+</script>
+</body>
+</html>
