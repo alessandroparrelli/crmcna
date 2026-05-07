@@ -55,6 +55,7 @@ const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 const _s=localStorage.getItem("cna_crm");if(!_s){location.href="../index.html";}
 const me=JSON.parse(_s);
 document.getElementById("uname").textContent=me.nome+" "+me.cognome;
+if(me.ruolo==="admin"){ var _tu=document.getElementById("t-utenti"); if(_tu) _tu.style.display=""; }
 if(me.ruolo==="admin"||me.ruolo==="supervisore"){var _e=document.getElementById("t-comm");if(_e)_e.style.display="";_e=document.getElementById("t-prov");if(_e)_e.style.display="";}
 if(me.ruolo==="admin"){var _e=document.getElementById("t-tipi");if(_e)_e.style.display="";}
 async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();return Array.isArray(d)?d:[];}

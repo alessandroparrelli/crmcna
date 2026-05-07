@@ -25,6 +25,7 @@
   <button class="tab-btn" id="t-prov" style="display:none" onclick="location.href='pages/provvigioni.html'">💰 Provvigioni</button>
   <button class="tab-btn" id="t-tipi" style="display:none" onclick="location.href='pages/tipi-contratto.html'">📋 Tipi Contratto</button>
   <button class="tab-btn" onclick="location.href='pages/campagne.html'">🎯 Campagne</button>
+  <button class="tab-btn" id="t-utenti" style="display:none" onclick="location.href='pages/utenti.html'">👤 Utenti</button>
 </div>
 
 <div class="page active">
@@ -92,7 +93,7 @@ if(!_s){location.href="index.html";}
 const me=JSON.parse(_s);
 document.getElementById("uname").textContent=me.nome+" "+me.cognome+" ("+me.ruolo+")";
 if(me.ruolo==="admin"||me.ruolo==="supervisore"){document.getElementById("t-comm").style.display="";document.getElementById("t-prov").style.display="";}
-if(me.ruolo==="admin"){document.getElementById("t-tipi").style.display="";document.getElementById("f-u-wrap").style.display="";}
+if(me.ruolo==="admin"){document.getElementById("t-tipi").style.display="";document.getElementById("f-u-wrap").style.display="";document.getElementById("t-utenti").style.display="";}
 function logout(){localStorage.removeItem("cna_crm");location.href="index.html";}
 
 async function dbGet(ep){

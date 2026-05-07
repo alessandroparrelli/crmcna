@@ -79,6 +79,7 @@ function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFr
 function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
 function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
 if(me.ruolo!=="admin"&&me.ruolo!=="supervisore"){alert("Accesso negato");location.href="../dashboard.html";}
+var _tu=document.getElementById("t-utenti"); if(_tu&&me.ruolo==="admin") _tu.style.display="";
 let contratti=[],comms=[];
 async function init(){
   try{
