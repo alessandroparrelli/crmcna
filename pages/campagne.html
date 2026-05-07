@@ -27,103 +27,221 @@
 </div>
 <div class="page active">
   <h2 style="margin-bottom:20px;font-size:20px;font-weight:800">🎯 Campagne</h2>
+
+  <!-- Crea nuova (admin/supervisore) -->
   <div id="crea-box" class="upload-card" style="display:none">
     <div class="upload-title">➕ Nuova Campagna</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-      <div class="filter-group">
+      <div class="filter-group" style="flex:2;min-width:220px">
         <label>Nome Campagna</label>
-        <input type="text" class="form-input" id="n-nome" placeholder="es. Campagna Primavera 2026" style="min-width:280px">
+        <input type="text" class="form-input" id="n-nome" placeholder="es. Recupero Associati 2026">
       </div>
-      <button class="btn btn-primary" onclick="creaCampagna()">➕ Crea</button>
+      <div class="filter-group" style="flex:2;min-width:220px">
+        <label>Carica Excel con leads (opzionale)</label>
+        <input type="file" class="form-input" id="n-file" accept=".xlsx,.xls,.csv">
+      </div>
+      <button class="btn btn-primary" onclick="creaCampagna()">➕ Crea Campagna</button>
     </div>
+    <p style="font-size:12px;color:#94A3B8;margin-top:10px">
+      📌 Colonne Excel supportate: <strong>nome, cognome, azienda, telefono, email</strong> (una per riga, prima riga = intestazioni)
+    </p>
   </div>
+
+  <!-- Filtri -->
   <div class="filters-bar">
     <div class="filter-group">
       <label>STATO</label>
       <select class="form-input" id="f-stato" onchange="render()">
         <option value="">Tutte</option>
-        <option value="attiva">Attiva</option>
-        <option value="completata">Completata</option>
+        <option value="active">Attiva</option>
+        <option value="completed">Completata</option>
+        <option value="archived">Archiviata</option>
       </select>
     </div>
   </div>
+
+  <!-- KPI -->
   <div class="kpi-strip">
     <div class="kpi-card c1"><div class="kpi-label">Campagne</div><div class="kpi-value" id="k1">—</div></div>
     <div class="kpi-card c2"><div class="kpi-label">Attive</div><div class="kpi-value" id="k2">—</div></div>
     <div class="kpi-card c3"><div class="kpi-label">Leads Totali</div><div class="kpi-value" id="k3">—</div></div>
     <div class="kpi-card c4"><div class="kpi-label">Contratti</div><div class="kpi-value" id="k4">—</div></div>
   </div>
+
+  <!-- Tabella -->
   <div class="table-card">
     <div class="table-card-header"><h3>🎯 Elenco Campagne</h3><span id="cnt">0</span></div>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Nome</th><th>Data</th><th>Leads</th><th>Contratti</th><th>Stato</th><th>Azioni</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Nome Campagna</th>
+            <th>Data Creazione</th>
+            <th>Leads</th>
+            <th>Da Lavorare</th>
+            <th>Contattati</th>
+            <th>KO</th>
+            <th>Contratti</th>
+            <th>Stato</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="9" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
 </div>
-<script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
 const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
 const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
 const _s=localStorage.getItem("cna_crm");if(!_s){location.href="../index.html";}
 const me=JSON.parse(_s);
 document.getElementById("uname").textContent=me.nome+" "+me.cognome;
-if(me.ruolo==="admin"||me.ruolo==="supervisore"){var _e=document.getElementById("t-comm");if(_e)_e.style.display="";_e=document.getElementById("t-prov");if(_e)_e.style.display="";}
-if(me.ruolo==="admin"){var _e=document.getElementById("t-tipi");if(_e)_e.style.display="";}
-async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();return Array.isArray(d)?d:[];}
-async function dbPost(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
-async function dbPatch(ep,b){await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});}
-async function dbDel(ep){await fetch(SB+"/rest/v1/"+ep,{method:"DELETE",headers:{"apikey":SK,"Authorization":"Bearer "+SK}});}
-function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
-function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFractionDigits:2});}
-function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
+if(me.ruolo==="admin"||me.ruolo==="supervisore"){
+  document.getElementById("t-comm").style.display="";
+  document.getElementById("t-prov").style.display="";
+  document.getElementById("crea-box").style.display="block";
+}
+if(me.ruolo==="admin") document.getElementById("t-tipi").style.display="";
 function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
-if(me.ruolo==="admin"||me.ruolo==="supervisore")document.getElementById("crea-box").style.display="block";
-let campagne=[],leadsMap={};
+async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status+" "+await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
+async function dbPost(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
+function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
+function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return'<span class="badge" style="background:'+bg+';color:'+fg+'">'+t+"</span>";}
+
+let campagne=[], leadsMap={};
+
 async function init(){
   try{
     campagne=await dbGet("campaigns?select=*&order=created_at.desc");
+    // Carica conteggi leads per ogni campagna
     for(const c of campagne){
-      const l=await dbGet("campaign_leads?campaign_id=eq."+c.id+"&select=stato");
+      const l=await dbGet("campaign_leads?campaign_id=eq."+c.id+"&select=status");
       leadsMap[c.id]=l;
     }
     render();
-  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"6\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
+  }catch(ex){
+    document.getElementById("tbody").innerHTML='<tr><td colspan="9" style="color:#EF4444;padding:20px">Errore: '+ex.message+"</td></tr>";
+  }
 }
+
 function render(){
   let list=campagne.slice();
-  const fs=document.getElementById("f-stato").value;if(fs)list=list.filter(c=>c.stato===fs);
+  const fs=document.getElementById("f-stato").value;
+  if(fs) list=list.filter(c=>c.status===fs);
+
   const tL=list.reduce((s,c)=>s+(leadsMap[c.id]||[]).length,0);
-  const tC=list.reduce((s,c)=>s+(leadsMap[c.id]||[]).filter(l=>l.stato==="contratto_generato").length,0);
+  const tC=list.reduce((s,c)=>s+(leadsMap[c.id]||[]).filter(l=>l.status==="converted").length,0);
   document.getElementById("k1").textContent=list.length;
-  document.getElementById("k2").textContent=list.filter(c=>c.stato==="attiva"||!c.stato).length;
+  document.getElementById("k2").textContent=list.filter(c=>c.status==="active"||!c.status).length;
   document.getElementById("k3").textContent=tL;
   document.getElementById("k4").textContent=tC;
   document.getElementById("cnt").textContent=list.length+" campagne";
+
   const tbody=document.getElementById("tbody");
-  if(!list.length){tbody.innerHTML="<tr><td colspan=\"6\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessuna campagna</td></tr>";return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:#94A3B8">Nessuna campagna trovata</td></tr>';return;}
+
   tbody.innerHTML=list.map(c=>{
     const leads=leadsMap[c.id]||[];
-    const contr=leads.filter(l=>l.stato==="contratto_generato").length;
-    const stato=c.stato||"attiva";
-    return"<tr>"+
-      "<td><strong>"+c.nome+"</strong></td>"+
+    const daLav=leads.filter(l=>!l.status||l.status==="new").length;
+    const cont=leads.filter(l=>l.status==="contacted"||l.status==="callback").length;
+    const ko=leads.filter(l=>l.status==="lost").length;
+    const conv=leads.filter(l=>l.status==="converted").length;
+    const stato=c.status||"active";
+    const statoLabel={"active":"Attiva","completed":"Completata","archived":"Archiviata"}[stato]||stato;
+    const statoColor=stato==="active"?"success":stato==="completed"?"info":"";
+    return "<tr>"+
+      "<td><strong>"+c.name+"</strong></td>"+
       "<td>"+fDate(c.created_at)+"</td>"+
-      "<td>"+leads.length+"</td>"+
-      "<td>"+badge(contr,"success")+"</td>"+
-      "<td>"+badge(stato,stato==="attiva"?"success":"")+"</td>"+
-      "<td><button class=\"btn btn-primary\" onclick=\"location.href='campagna-dettaglio.html?id="+c.id+"'\">👁️ Apri</button></td>"+
+      "<td><strong>"+leads.length+"</strong></td>"+
+      "<td>"+badge(daLav,"")+"</td>"+
+      "<td>"+badge(cont,"success")+"</td>"+
+      "<td>"+badge(ko,"danger")+"</td>"+
+      "<td>"+badge(conv,"info")+"</td>"+
+      "<td>"+badge(statoLabel,statoColor)+"</td>"+
+      '<td><button class="btn btn-primary" onclick="location.href=\'campagna-dettaglio.html?id='+c.id+'\'">👁️ Gestisci</button></td>'+
       "</tr>";
   }).join("");
 }
+
 async function creaCampagna(){
   const nome=document.getElementById("n-nome").value.trim();
-  if(!nome){alert("Inserisci il nome");return;}
-  try{await dbPost("campaigns",{nome,stato:"attiva",created_by:me.id});document.getElementById("n-nome").value="";init();}
-  catch(ex){alert("Errore: "+ex.message);}
+  if(!nome){alert("Inserisci il nome della campagna");return;}
+  const fileInput=document.getElementById("n-file");
+  const file=fileInput.files[0];
+
+  try{
+    // 1. Crea la campagna con i campi corretti (name, status)
+    const nc=await dbPost("campaigns",{name:nome,status:"active",created_by:me.id});
+    if(!nc||!nc[0]) throw new Error("Errore creazione campagna");
+    const campId=nc[0].id;
+
+    // 2. Se c'è un file Excel, importa i leads
+    if(file){
+      await importaExcel(file, campId);
+    }
+
+    document.getElementById("n-nome").value="";
+    fileInput.value="";
+    alert("Campagna '"+nome+"' creata"+(file?" con leads importati":"")+"!");
+    init();
+  }catch(ex){
+    alert("Errore: "+ex.message);
+  }
 }
+
+async function importaExcel(file, campId){
+  return new Promise((resolve, reject)=>{
+    const reader=new FileReader();
+    reader.onload=async function(e){
+      try{
+        const data=new Uint8Array(e.target.result);
+        const wb=XLSX.read(data,{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+
+        if(!rows.length){reject(new Error("File Excel vuoto"));return;}
+
+        // Mappa colonne flessibili (accetta varianti)
+        const leads=rows.map(r=>{
+          const keys=Object.keys(r).map(k=>k.toLowerCase().trim());
+          const get=(names)=>{
+            for(const n of names){
+              const k=Object.keys(r).find(k=>k.toLowerCase().trim()===n);
+              if(k&&r[k]) return String(r[k]).trim();
+            }
+            return null;
+          };
+          return {
+            campaign_id: campId,
+            nome: get(["nome","name","first_name","firstname"]),
+            cognome: get(["cognome","surname","last_name","lastname"]),
+            azienda: get(["azienda","company","ragione_sociale","ragionesociale","societa"]),
+            telefono: get(["telefono","phone","tel","cellulare","mobile"]),
+            email: get(["email","mail","e-mail"]),
+            status: "new"
+          };
+        }).filter(l=>l.nome||l.azienda||l.telefono);
+
+        if(!leads.length){reject(new Error("Nessun lead valido trovato nel file"));return;}
+
+        // Inserisci a batch di 50
+        for(let i=0;i<leads.length;i+=50){
+          const batch=leads.slice(i,i+50);
+          await dbPost("campaign_leads",batch);
+        }
+        resolve(leads.length);
+      }catch(ex){reject(ex);}
+    };
+    reader.onerror=()=>reject(new Error("Errore lettura file"));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 init();
 </script>
 </body>

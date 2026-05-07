@@ -22,168 +22,360 @@
   <button class="tab-btn" id="t-comm" style="display:none" onclick="location.href='commerciali.html'">👥 Commerciali</button>
   <button class="tab-btn active" onclick="location.href='campagne.html'">🎯 Campagne</button>
 </div>
+
 <div class="page active">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-    <h2 id="titolo" style="font-size:20px;font-weight:800">Campagna</h2>
-    <button class="btn btn-secondary" onclick="location.href='campagne.html'">← Indietro</button>
+  <!-- Intestazione campagna -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 id="titolo" style="font-size:20px;font-weight:800">Campagna</h2>
+      <p id="sottotitolo" style="color:#64748B;font-size:13px;margin-top:4px"></p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="location.href='campagne.html'">← Torna alle Campagne</button>
+      <button class="btn btn-primary" id="btn-aggiungi-lead" style="display:none" onclick="toggleAggiungi()">➕ Aggiungi Lead</button>
+      <button class="btn btn-primary" id="btn-import-extra" style="display:none" onclick="document.getElementById('extra-file').click()">📥 Importa altri Excel</button>
+      <input type="file" id="extra-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importaExtraExcel(this)">
+    </div>
   </div>
-  <div id="add-box" class="upload-card" style="display:none">
-    <div class="upload-title">➕ Aggiungi Lead</div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-      <div class="filter-group"><label>Ragione Sociale</label><input type="text" class="form-input" id="a-rag" placeholder="Azienda"></div>
-      <div class="filter-group"><label>Telefono</label><input type="text" class="form-input" id="a-tel" placeholder="+39..."></div>
-      <div class="filter-group"><label>Assegna a</label><select class="form-input" id="a-op"><option value="">Nessuno</option></select></div>
+
+  <!-- Form aggiungi lead manuale -->
+  <div id="add-box" class="upload-card" style="display:none;margin-bottom:20px">
+    <div class="upload-title">➕ Aggiungi Lead Manuale</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:flex-end">
+      <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Azienda</label>
+        <input type="text" class="form-input" id="a-az" placeholder="Ragione Sociale"></div>
+      <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Nome</label>
+        <input type="text" class="form-input" id="a-nome" placeholder="Nome"></div>
+      <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Cognome</label>
+        <input type="text" class="form-input" id="a-cogn" placeholder="Cognome"></div>
+      <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Telefono</label>
+        <input type="text" class="form-input" id="a-tel" placeholder="+39..."></div>
+      <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Assegna a</label>
+        <select class="form-input" id="a-op"><option value="">Nessuno</option></select></div>
       <button class="btn btn-primary" onclick="addLead()">➕ Aggiungi</button>
     </div>
   </div>
+
+  <!-- Filtri -->
   <div class="filters-bar">
     <div class="filter-group">
-      <label>STATO</label>
+      <label>STATO CONTATTO</label>
       <select class="form-input" id="f-stato" onchange="render()">
         <option value="">Tutti</option>
-        <option value="da_lavorare">Da Lavorare</option>
-        <option value="contattato">Contattato</option>
-        <option value="da_richiamare">Da Richiamare</option>
-        <option value="ko">KO</option>
-        <option value="contratto_generato">Contratto Generato</option>
+        <option value="new">Da Lavorare</option>
+        <option value="contacted">Contattato</option>
+        <option value="callback">Da Richiamare</option>
+        <option value="lost">KO</option>
+        <option value="converted">Contratto Generato</option>
       </select>
     </div>
     <div class="filter-group" id="f-op-wrap" style="display:none">
       <label>OPERATORE</label>
-      <select class="form-input" id="f-op" onchange="render()"><option value="">Tutti</option></select>
+      <select class="form-input" id="f-op" onchange="render()">
+        <option value="">Tutti</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-secondary" onclick="resetFiltri()">✕ Reset</button>
     </div>
   </div>
+
+  <!-- KPI -->
   <div class="kpi-strip">
     <div class="kpi-card c1"><div class="kpi-label">Leads Totali</div><div class="kpi-value" id="k1">—</div></div>
     <div class="kpi-card c2"><div class="kpi-label">Da Lavorare</div><div class="kpi-value" id="k2">—</div></div>
     <div class="kpi-card c3"><div class="kpi-label">Contattati</div><div class="kpi-value" id="k3">—</div></div>
     <div class="kpi-card c4"><div class="kpi-label">Contratti</div><div class="kpi-value" id="k4">—</div></div>
   </div>
+
+  <!-- Tabella leads -->
   <div class="table-card">
-    <div class="table-card-header"><h3>📞 Leads</h3><span id="cnt">0</span></div>
+    <div class="table-card-header">
+      <h3>📞 Gestione Leads</h3>
+      <span id="cnt">0 leads</span>
+    </div>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Ragione Sociale</th><th>Telefono</th><th>Stato</th><th>Operatore</th><th>Ultimo Contatto</th><th>Note</th><th>Azioni</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="7" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Azienda</th>
+            <th>Nome</th>
+            <th>Telefono</th>
+            <th>Email</th>
+            <th>Stato</th>
+            <th>Operatore</th>
+            <th>Ultimo Contatto</th>
+            <th>Note</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="9" style="text-align:center;padding:40px;color:#94A3B8">Caricamento leads...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
 </div>
+
+<!-- Modal gestione lead -->
 <div class="modal-overlay" id="modal">
   <div class="modal-box">
     <div class="modal-title" id="m-tit">Gestisci Lead</div>
-    <div class="form-group"><label>Stato</label>
+
+    <div class="form-group">
+      <label>Stato Contatto</label>
       <select class="form-input" id="m-stato">
-        <option value="da_lavorare">Da Lavorare</option>
-        <option value="contattato">Contattato</option>
-        <option value="da_richiamare">Da Richiamare</option>
-        <option value="ko">KO</option>
-        <option value="contratto_generato">Contratto Generato</option>
+        <option value="new">Da Lavorare</option>
+        <option value="contacted">Contattato</option>
+        <option value="callback">Da Richiamare</option>
+        <option value="lost">KO</option>
+        <option value="converted">Contratto Generato</option>
       </select>
     </div>
-    <div class="form-group"><label>Note</label><textarea class="form-input" id="m-note" rows="3" placeholder="Note sulla chiamata..."></textarea></div>
-    <div class="form-group" id="m-op-wrap" style="display:none"><label>Assegna a</label><select class="form-input" id="m-op"><option value="">Nessuno</option></select></div>
+
+    <div class="form-group">
+      <label>Note sulla chiamata</label>
+      <textarea class="form-input" id="m-note" rows="3" placeholder="Scrivi note..."></textarea>
+    </div>
+
+    <div class="form-group" id="m-op-wrap" style="display:none">
+      <label>Assegna / Riassegna a</label>
+      <select class="form-input" id="m-op"><option value="">Nessuno</option></select>
+    </div>
+
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveModal()">💾 Salva</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal').classList.remove('open')">✕ Annulla</button>
+      <button class="btn btn-primary" onclick="salvaMod()">💾 Salva</button>
+      <button class="btn btn-secondary" onclick="chiudiMod()">✕ Annulla</button>
     </div>
   </div>
 </div>
-<script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
 const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
 const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
 const _s=localStorage.getItem("cna_crm");if(!_s){location.href="../index.html";}
 const me=JSON.parse(_s);
 document.getElementById("uname").textContent=me.nome+" "+me.cognome;
-if(me.ruolo==="admin"||me.ruolo==="supervisore"){var _e=document.getElementById("t-comm");if(_e)_e.style.display="";_e=document.getElementById("t-prov");if(_e)_e.style.display="";}
-if(me.ruolo==="admin"){var _e=document.getElementById("t-tipi");if(_e)_e.style.display="";}
+if(me.ruolo==="admin"||me.ruolo==="supervisore") document.getElementById("t-comm").style.display="";
+function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
+
 async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();return Array.isArray(d)?d:[];}
 async function dbPost(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
-async function dbPatch(ep,b){await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});}
-async function dbDel(ep){await fetch(SB+"/rest/v1/"+ep,{method:"DELETE",headers:{"apikey":SK,"Authorization":"Bearer "+SK}});}
+async function dbPatch(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());}
 function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
-function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFractionDigits:2});}
-function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
-function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
-const cid=new URLSearchParams(location.search).get("id");
+function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return'<span class="badge" style="background:'+bg+';color:'+fg+'">'+t+"</span>";}
+
+const cid=parseInt(new URLSearchParams(location.search).get("id"));
 if(!cid){location.href="campagne.html";}
-let leads=[],operatori=[],editId=null;
+
+let leads=[], operatori=[], editId=null;
+
+const STATI={
+  new:{label:"Da Lavorare",color:""},
+  contacted:{label:"Contattato",color:"success"},
+  callback:{label:"Da Richiamare",color:"warning"},
+  lost:{label:"KO",color:"danger"},
+  converted:{label:"Contratto Generato",color:"info"}
+};
+
 async function init(){
   try{
-    const camps=await dbGet("campaigns?id=eq."+cid+"&select=nome");
-    if(camps.length)document.getElementById("titolo").textContent="📋 "+camps[0].nome;
+    // Carica campagna
+    const camps=await dbGet("campaigns?id=eq."+cid+"&select=*");
+    if(!camps.length){alert("Campagna non trovata");location.href="campagne.html";return;}
+    const c=camps[0];
+    document.getElementById("titolo").textContent="📋 "+c.name;
+    document.getElementById("sottotitolo").textContent="Creata il "+fDate(c.created_at)+" • Stato: "+(c.status||"active");
+
+    // Carica operatori (utente = operatore telefonico)
     operatori=await dbGet("cna_users?ruolo=eq.utente&attivo=eq.true&select=id,nome,cognome&order=nome");
-    const opOpts=operatori.map(o=>"<option value=\""+o.id+"\">"+o.nome+" "+o.cognome+"</option>").join("");
-    ["a-op","m-op","f-op"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=(id==="f-op"?"<option value=\"\">Tutti</option>":"<option value=\"\">Nessuno</option>")+opOpts;});
+    const opOpts=operatori.map(o=>"<option value='"+o.id+"'>"+o.nome+" "+o.cognome+"</option>").join("");
+    ["a-op","m-op"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML="<option value=''>Nessuno</option>"+opOpts;
+    });
+    document.getElementById("f-op").innerHTML="<option value=''>Tutti</option>"+opOpts;
+
+    // Mostra controlli admin/supervisore
     if(me.ruolo==="admin"||me.ruolo==="supervisore"){
-      document.getElementById("add-box").style.display="block";
+      document.getElementById("btn-aggiungi-lead").style.display="";
+      document.getElementById("btn-import-extra").style.display="";
       document.getElementById("f-op-wrap").style.display="";
       document.getElementById("m-op-wrap").style.display="";
     }
-    let q="campaign_leads?campaign_id=eq."+cid+"&select=*&order=created_at.desc";
-    if(me.ruolo==="utente")q+="&assegnato_a=eq."+me.id;
+
+    // Carica leads
+    let q="campaign_leads?campaign_id=eq."+cid+"&select=*&order=id.asc";
+    if(me.ruolo==="utente") q+="&assigned_to=eq."+me.id;
     leads=await dbGet(q);
     render();
-  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"7\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
+  }catch(ex){
+    document.getElementById("tbody").innerHTML='<tr><td colspan="9" style="color:#EF4444;padding:20px">Errore: '+ex.message+"</td></tr>";
+  }
 }
+
 function render(){
   let list=leads.slice();
-  const fs=document.getElementById("f-stato").value;if(fs)list=list.filter(l=>l.stato===fs);
-  if(me.ruolo!=="utente"){const fo=document.getElementById("f-op").value;if(fo)list=list.filter(l=>l.assegnato_a===fo);}
+
+  const fs=document.getElementById("f-stato").value;
+  if(fs) list=list.filter(l=>l.status===fs);
+
+  if(me.ruolo!=="utente"){
+    const fo=document.getElementById("f-op").value;
+    if(fo) list=list.filter(l=>l.assigned_to===fo);
+  }
+
+  // KPI
   document.getElementById("k1").textContent=list.length;
-  document.getElementById("k2").textContent=list.filter(l=>!l.stato||l.stato==="da_lavorare").length;
-  document.getElementById("k3").textContent=list.filter(l=>l.stato==="contattato"||l.stato==="da_richiamare").length;
-  document.getElementById("k4").textContent=list.filter(l=>l.stato==="contratto_generato").length;
+  document.getElementById("k2").textContent=list.filter(l=>!l.status||l.status==="new").length;
+  document.getElementById("k3").textContent=list.filter(l=>l.status==="contacted"||l.status==="callback").length;
+  document.getElementById("k4").textContent=list.filter(l=>l.status==="converted").length;
   document.getElementById("cnt").textContent=list.length+" leads";
-  const SM={da_lavorare:"",contattato:"success",da_richiamare:"warning",ko:"danger",contratto_generato:"success"};
+
   const tbody=document.getElementById("tbody");
-  if(!list.length){tbody.innerHTML="<tr><td colspan=\"7\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun lead</td></tr>";return;}
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:#94A3B8">Nessun lead trovato</td></tr>';
+    return;
+  }
+
   tbody.innerHTML=list.map(l=>{
-    const op=operatori.find(o=>o.id===l.assegnato_a);
-    const stato=l.stato||"da_lavorare";
-    return"<tr>"+
-      "<td><strong>"+(l.ragione_sociale||"-")+"</strong></td>"+
+    const op=operatori.find(o=>o.id===l.assigned_to);
+    const s=STATI[l.status||"new"]||STATI.new;
+    const azienda=l.azienda||"-";
+    const nome=(l.nome||"")+" "+(l.cognome||"");
+    const notePreview=l.note?l.note.substring(0,35)+(l.note.length>35?"...":""):"-";
+
+    return "<tr>"+
+      "<td><strong>"+azienda+"</strong></td>"+
+      "<td>"+nome.trim()+"</td>"+
       "<td>"+(l.telefono||"-")+"</td>"+
-      "<td>"+badge(stato.replace(/_/g," "),SM[stato]||"")+"</td>"+
+      "<td>"+(l.email||"-")+"</td>"+
+      "<td>"+badge(s.label,s.color)+"</td>"+
       "<td>"+(op?op.nome+" "+op.cognome:"-")+"</td>"+
-      "<td>"+fDate(l.ultimo_contatto)+"</td>"+
-      "<td style=\"max-width:120px;overflow:hidden;text-overflow:ellipsis\">"+(l.note?l.note.substring(0,40)+"...":"-")+"</td>"+
-      "<td><button class=\"btn btn-secondary\" onclick='openModal(\""+l.id+"\")'>✏️</button></td>"+
+      "<td>"+fDate(l.contacted_at)+"</td>"+
+      "<td style='max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+notePreview+"</td>"+
+      '<td><button class="btn btn-secondary" onclick="apriMod('+l.id+')">✏️ Gestisci</button></td>'+
       "</tr>";
   }).join("");
 }
-function openModal(id){
-  const l=leads.find(x=>x.id===id);if(!l)return;
+
+function toggleAggiungi(){
+  const box=document.getElementById("add-box");
+  box.style.display=box.style.display==="none"?"block":"none";
+}
+
+async function addLead(){
+  const az=document.getElementById("a-az").value.trim();
+  const nome=document.getElementById("a-nome").value.trim();
+  const cogn=document.getElementById("a-cogn").value.trim();
+  const tel=document.getElementById("a-tel").value.trim();
+  const op=document.getElementById("a-op").value;
+
+  if(!az&&!nome&&!tel){alert("Inserisci almeno azienda, nome o telefono");return;}
+
+  try{
+    const nl=await dbPost("campaign_leads",[{
+      campaign_id:cid,
+      azienda:az||null,
+      nome:nome||null,
+      cognome:cogn||null,
+      telefono:tel||null,
+      assigned_to:op||null,
+      status:"new"
+    }]);
+    ["a-az","a-nome","a-cogn","a-tel"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("a-op").value="";
+    if(nl&&nl[0]) leads.unshift(nl[0]);
+    render();
+    document.getElementById("add-box").style.display="none";
+  }catch(ex){alert("Errore: "+ex.message);}
+}
+
+function apriMod(id){
+  const l=leads.find(x=>x.id===id);
+  if(!l) return;
   editId=id;
-  document.getElementById("m-tit").textContent=l.ragione_sociale||"Lead";
-  document.getElementById("m-stato").value=l.stato||"da_lavorare";
+  document.getElementById("m-tit").textContent=(l.azienda||l.nome||"Lead");
+  document.getElementById("m-stato").value=l.status||"new";
   document.getElementById("m-note").value=l.note||"";
   const mop=document.getElementById("m-op");
-  if(mop)mop.value=l.assegnato_a||"";
+  if(mop) mop.value=l.assigned_to||"";
   document.getElementById("modal").classList.add("open");
 }
-async function saveModal(){
-  if(!editId)return;
+
+async function salvaMod(){
+  if(!editId) return;
+  const stato=document.getElementById("m-stato").value;
+  const note=document.getElementById("m-note").value.trim()||null;
+  const updates={status:stato,note:note};
+  if(stato==="contacted"||stato==="callback"||stato==="lost"||stato==="converted"){
+    updates.contacted_at=new Date().toISOString();
+  }
+  if(stato==="converted") updates.converted_at=new Date().toISOString();
+  const mop=document.getElementById("m-op");
+  if(mop&&(me.ruolo==="admin"||me.ruolo==="supervisore")){
+    updates.assigned_to=mop.value||null;
+  }
   try{
-    const upd={stato:document.getElementById("m-stato").value,note:document.getElementById("m-note").value||null,ultimo_contatto:new Date().toISOString()};
-    const mop=document.getElementById("m-op");
-    if(mop&&(me.ruolo==="admin"||me.ruolo==="supervisore"))upd.assegnato_a=mop.value||null;
-    await dbPatch("campaign_leads?id=eq."+editId,upd);
-    const l=leads.find(x=>x.id===editId);if(l)Object.assign(l,upd);
-    document.getElementById("modal").classList.remove("open");
+    await dbPatch("campaign_leads?id=eq."+editId,updates);
+    const l=leads.find(x=>x.id===editId);
+    if(l) Object.assign(l,updates);
+    chiudiMod();
     render();
   }catch(ex){alert("Errore: "+ex.message);}
 }
-async function addLead(){
-  const rag=document.getElementById("a-rag").value.trim();
-  if(!rag){alert("Inserisci la ragione sociale");return;}
-  try{
-    const nl=await dbPost("campaign_leads",{campaign_id:cid,ragione_sociale:rag,telefono:document.getElementById("a-tel").value.trim()||null,assegnato_a:document.getElementById("a-op").value||null,stato:"da_lavorare",created_by:me.id});
-    document.getElementById("a-rag").value="";document.getElementById("a-tel").value="";document.getElementById("a-op").value="";
-    if(nl&&nl[0])leads.unshift(nl[0]);render();
-  }catch(ex){alert("Errore: "+ex.message);}
+
+function chiudiMod(){
+  document.getElementById("modal").classList.remove("open");
+  editId=null;
 }
+
+function resetFiltri(){
+  document.getElementById("f-stato").value="";
+  if(me.ruolo!=="utente") document.getElementById("f-op").value="";
+  render();
+}
+
+async function importaExtraExcel(input){
+  const file=input.files[0];
+  if(!file) return;
+  if(!confirm("Importare i leads dal file '"+file.name+"' in questa campagna?")) return;
+
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+      if(!rows.length){alert("File vuoto");return;}
+
+      const get=(r,names)=>{for(const n of names){const k=Object.keys(r).find(k=>k.toLowerCase().trim()===n);if(k&&r[k])return String(r[k]).trim();}return null;};
+      const nuovi=rows.map(r=>({
+        campaign_id:cid,
+        nome:get(r,["nome","name","first_name"]),
+        cognome:get(r,["cognome","surname","last_name"]),
+        azienda:get(r,["azienda","company","ragione_sociale","societa"]),
+        telefono:get(r,["telefono","phone","tel","cellulare"]),
+        email:get(r,["email","mail"]),
+        status:"new"
+      })).filter(l=>l.nome||l.azienda||l.telefono);
+
+      if(!nuovi.length){alert("Nessun lead valido trovato");return;}
+
+      for(let i=0;i<nuovi.length;i+=50){
+        const nl=await dbPost("campaign_leads",nuovi.slice(i,i+50));
+        leads.push(...(Array.isArray(nl)?nl:[]));
+      }
+      input.value="";
+      alert(nuovi.length+" leads importati con successo!");
+      render();
+    }catch(ex){alert("Errore importazione: "+ex.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 init();
 </script>
 </body>
