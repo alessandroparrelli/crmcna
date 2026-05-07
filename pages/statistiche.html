@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Statistiche</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn active">📈 Statistiche</button>
+      <button class="tab-btn" onclick="navigateTo('commerciali.html')" id="tab-commerciali" style="display:none">👥 Gestione Commerciali</button>
+      <button class="tab-btn" onclick="navigateTo('provvigioni.html')" id="tab-provvigioni" style="display:none">💰 Gestione Provvigioni</button>
+      <button class="tab-btn" onclick="navigateTo('tipi-contratto.html')" id="tab-tipi" style="display:none">📋 Tipi Contratto</button>
+      <button class="tab-btn" onclick="navigateTo('campagne.html')">🎯 Campagne</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="page active">
+      
+      <h2 style="margin-bottom:24px">📈 Le Mie Statistiche</h2>
+
+      <!-- Periodo Filter -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>PERIODO</label>
+          <select class="form-input" id="filter-periodo" onchange="loadStats()">
+            <option value="all">Tutto il periodo</option>
+            <option value="year">Quest'anno</option>
+            <option value="month">Questo mese</option>
+            <option value="week">Questa settimana</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Contratti Creati</div>
+          <div class="kpi-value" id="stat-totali">0</div>
+          <div class="kpi-sub">Nel periodo</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Contratti Firmati</div>
+          <div class="kpi-value" id="stat-firmati">0</div>
+          <div class="kpi-sub">Completati</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">Tasso Conversione</div>
+          <div class="kpi-value" id="stat-conversione">0%</div>
+          <div class="kpi-sub">Firmati / Totali</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Media Giornaliera</div>
+          <div class="kpi-value" id="stat-media">0</div>
+          <div class="kpi-sub">Contratti/giorno</div>
+        </div>
+      </div>
+
+      <!-- Stats by Type -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📊 Statistiche per Tipo Contratto</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Tipo Contratto</th>
+                <th>Totale</th>
+                <th>Firmati</th>
+                <th>In Attesa</th>
+                <th>Tasso Conversione</th>
+              </tr>
+            </thead>
+            <tbody id="table-by-type">
+              <tr><td colspan="5" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Stats by Month -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📅 Statistiche Mensili</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mese</th>
+                <th>Totale Contratti</th>
+                <th>Firmati</th>
+                <th>Tasso Conversione</th>
+              </tr>
+            </thead>
+            <tbody id="table-by-month">
+              <tr><td colspan="4" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    const currentUser = Auth.getUser();
+    
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    if (Auth.isAdmin() || Auth.isSupervisore()) {
+      document.getElementById('tab-commerciali').style.display = 'block';
+      document.getElementById('tab-provvigioni').style.display = 'block';
+    }
+    if (Auth.isAdmin()) {
+      document.getElementById('tab-tipi').style.display = 'block';
+    }
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    let allContratti = [];
+
+    async function loadStats() {
+      showLoading('Caricamento statistiche...');
+      try {
+        // Load user's contracts
+        const query = `contratti?created_by=eq.${currentUser.id}&select=*&order=created_at.desc`;
+        allContratti = await sb(query);
+
+        // Apply period filter
+        const periodo = document.getElementById('filter-periodo').value;
+        let filtered = allContratti;
+        
+        const now = new Date();
+        if (periodo === 'year') {
+          const startOfYear = new Date(now.getFullYear(), 0, 1);
+          filtered = allContratti.filter(c => new Date(c.created_at) >= startOfYear);
+        } else if (periodo === 'month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          filtered = allContratti.filter(c => new Date(c.created_at) >= startOfMonth);
+        } else if (periodo === 'week') {
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - now.getDay());
+          startOfWeek.setHours(0,0,0,0);
+          filtered = allContratti.filter(c => new Date(c.created_at) >= startOfWeek);
+        }
+
+        // Calculate stats
+        const totali = filtered.length;
+        const firmati = filtered.filter(c => c.stato === 'firmato').length;
+        const conversione = totali > 0 ? ((firmati / totali) * 100).toFixed(1) : 0;
+        
+        // Calculate daily average
+        let days = 1;
+        if (periodo === 'year') days = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (1000 * 60 * 60 * 24));
+        else if (periodo === 'month') days = now.getDate();
+        else if (periodo === 'week') days = 7;
+        else days = Math.ceil((now - new Date(filtered[filtered.length - 1]?.created_at)) / (1000 * 60 * 60 * 24)) || 1;
+        
+        const media = (totali / days).toFixed(1);
+
+        // Update KPIs
+        document.getElementById('stat-totali').textContent = totali;
+        document.getElementById('stat-firmati').textContent = firmati;
+        document.getElementById('stat-conversione').textContent = conversione + '%';
+        document.getElementById('stat-media').textContent = media;
+
+        // Stats by type
+        const byType = {};
+        filtered.forEach(c => {
+          const tipo = c.tipo_contratto || 'modulo adesione';
+          if (!byType[tipo]) {
+            byType[tipo] = { totale: 0, firmati: 0 };
+          }
+          byType[tipo].totale++;
+          if (c.stato === 'firmato') byType[tipo].firmati++;
+        });
+
+        const tbodyType = document.getElementById('table-by-type');
+        if (Object.keys(byType).length === 0) {
+          tbodyType.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px">Nessun dato</td></tr>';
+        } else {
+          tbodyType.innerHTML = Object.entries(byType).map(([tipo, stats]) => {
+            const conv = ((stats.firmati / stats.totale) * 100).toFixed(1);
+            return `
+              <tr>
+                <td><strong>${tipo}</strong></td>
+                <td>${stats.totale}</td>
+                <td>${stats.firmati}</td>
+                <td>${stats.totale - stats.firmati}</td>
+                <td><span class="badge success">${conv}%</span></td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // Stats by month
+        const byMonth = {};
+        filtered.forEach(c => {
+          const date = new Date(c.created_at);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          if (!byMonth[monthKey]) {
+            byMonth[monthKey] = { totale: 0, firmati: 0 };
+          }
+          byMonth[monthKey].totale++;
+          if (c.stato === 'firmato') byMonth[monthKey].firmati++;
+        });
+
+        const tbodyMonth = document.getElementById('table-by-month');
+        const sortedMonths = Object.keys(byMonth).sort().reverse();
+        
+        if (sortedMonths.length === 0) {
+          tbodyMonth.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px">Nessun dato</td></tr>';
+        } else {
+          tbodyMonth.innerHTML = sortedMonths.map(month => {
+            const stats = byMonth[month];
+            const conv = ((stats.firmati / stats.totale) * 100).toFixed(1);
+            const [year, monthNum] = month.split('-');
+            const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+            
+            return `
+              <tr>
+                <td><strong>${monthName}</strong></td>
+                <td>${stats.totale}</td>
+                <td>${stats.firmati}</td>
+                <td><span class="badge success">${conv}%</span></td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento statistiche');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

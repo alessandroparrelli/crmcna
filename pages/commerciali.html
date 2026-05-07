@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Gestione Commerciali</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="navigateTo('statistiche.html')">📈 Statistiche</button>
+      <button class="tab-btn active">👥 Gestione Commerciali</button>
+      <button class="tab-btn" onclick="navigateTo('provvigioni.html')">💰 Gestione Provvigioni</button>
+      <button class="tab-btn" onclick="navigateTo('tipi-contratto.html')" id="tab-tipi" style="display:none">📋 Tipi Contratto</button>
+      <button class="tab-btn" onclick="navigateTo('campagne.html')">🎯 Campagne</button>
+    </div>
+
+    <div class="page active">
+      
+      <h2 style="margin-bottom:24px">👥 Gestione Commerciali</h2>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>COMMERCIALE</label>
+          <select class="form-input" id="filter-commerciale" onchange="loadContratti()">
+            <option value="">Tutti i commerciali</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>STATO VALIDAZIONE</label>
+          <select class="form-input" id="filter-validazione" onchange="loadContratti()">
+            <option value="">Tutti</option>
+            <option value="da_validare">Da validare</option>
+            <option value="validato">Validato</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="resetFilters()">✕ Reset</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Contratti Totali</div>
+          <div class="kpi-value" id="kpi-totali">0</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Da Validare</div>
+          <div class="kpi-value" id="kpi-da-validare">0</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">Validati</div>
+          <div class="kpi-value" id="kpi-validati">0</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Commerciali Attivi</div>
+          <div class="kpi-value" id="kpi-commerciali">0</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📄 Contratti Commerciali</h3>
+          <span id="badge-count">0 contratti</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ragione Sociale</th>
+                <th>Tipo Contratto</th>
+                <th>Data</th>
+                <th>Commerciale</th>
+                <th>Stato</th>
+                <th>Validazione</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-contratti">
+              <tr><td colspan="7" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    
+    // Check permission
+    if (!Auth.isAdmin() && !Auth.isSupervisore()) {
+      alert('Accesso negato');
+      window.location.href = '../dashboard.html';
+    }
+
+    const currentUser = Auth.getUser();
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    if (Auth.isAdmin()) {
+      document.getElementById('tab-tipi').style.display = 'block';
+    }
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    let allContratti = [];
+    let commerciali = [];
+
+    async function init() {
+      showLoading();
+      try {
+        // Load commerciali
+        commerciali = await sb('cna_users?ruolo=eq.commerciale&attivo=eq.true&select=id,nome,cognome&order=nome');
+        
+        const select = document.getElementById('filter-commerciale');
+        select.innerHTML = '<option value="">Tutti i commerciali</option>' +
+          commerciali.map(c => `<option value="${c.id}">${c.nome} ${c.cognome}</option>`).join('');
+
+        document.getElementById('kpi-commerciali').textContent = commerciali.length;
+
+        await loadContratti();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento dati');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadContratti() {
+      showLoading();
+      try {
+        // Load all commerciali contracts
+        const commercialiIds = commerciali.map(c => c.id);
+        
+        let query = 'contratti?select=*&order=created_at.desc';
+        if (commercialiIds.length > 0) {
+          query += `&created_by=in.(${commercialiIds.join(',')})`;
+        }
+
+        allContratti = await sb(query);
+
+        // Apply filters
+        let filtered = allContratti;
+
+        const filterComm = document.getElementById('filter-commerciale').value;
+        if (filterComm) {
+          filtered = filtered.filter(c => c.created_by === filterComm);
+        }
+
+        const filterVal = document.getElementById('filter-validazione').value;
+        if (filterVal === 'da_validare') {
+          filtered = filtered.filter(c => !c.validato);
+        } else if (filterVal === 'validato') {
+          filtered = filtered.filter(c => c.validato);
+        }
+
+        // Update KPIs
+        document.getElementById('kpi-totali').textContent = filtered.length;
+        document.getElementById('kpi-da-validare').textContent = 
+          filtered.filter(c => !c.validato).length;
+        document.getElementById('kpi-validati').textContent = 
+          filtered.filter(c => c.validato).length;
+        document.getElementById('badge-count').textContent = `${filtered.length} contratti`;
+
+        // Update table
+        const tbody = document.getElementById('table-contratti');
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px">Nessun contratto trovato</td></tr>';
+        } else {
+          tbody.innerHTML = filtered.map(c => {
+            const comm = commerciali.find(u => u.id === c.created_by);
+            const commName = comm ? `${comm.nome} ${comm.cognome}` : '-';
+            
+            return `
+              <tr>
+                <td><strong>${c.ragione_sociale || '-'}</strong></td>
+                <td>${c.tipo_contratto || 'modulo adesione'}</td>
+                <td>${formatDate(c.created_at)}</td>
+                <td>${commName}</td>
+                <td><span class="badge ${c.stato === 'firmato' ? 'success' : 'warning'}">${c.stato}</span></td>
+                <td><span class="badge ${c.validato ? 'success' : 'warning'}">${c.validato ? 'Validato' : 'Da validare'}</span></td>
+                <td>
+                  ${!c.validato ? `<button class="btn btn-primary" onclick="validaContratto('${c.id}')">✓ Valida</button>` : '-'}
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function validaContratto(contrattoId) {
+      if (!confirm('Confermi la validazione di questo contratto?')) return;
+
+      showLoading('Validazione in corso...');
+      try {
+        await sb(`contratti?id=eq.${contrattoId}`, 'PATCH', {
+          validato: true,
+          validato_da: currentUser.id,
+          validato_at: new Date().toISOString()
+        });
+
+        alert('Contratto validato con successo');
+        await loadContratti();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nella validazione');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-commerciale').value = '';
+      document.getElementById('filter-validazione').value = '';
+      loadContratti();
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Gestione Provvigioni</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="navigateTo('statistiche.html')">📈 Statistiche</button>
+      <button class="tab-btn" onclick="navigateTo('commerciali.html')">👥 Gestione Commerciali</button>
+      <button class="tab-btn active">💰 Gestione Provvigioni</button>
+      <button class="tab-btn" onclick="navigateTo('tipi-contratto.html')" id="tab-tipi" style="display:none">📋 Tipi Contratto</button>
+      <button class="tab-btn" onclick="navigateTo('campagne.html')">🎯 Campagne</button>
+    </div>
+
+    <div class="page active">
+      
+      <h2 style="margin-bottom:24px">💰 Gestione Provvigioni</h2>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>MESE/ANNO</label>
+          <input type="month" class="form-input" id="filter-mese" onchange="loadProvvigioni()">
+        </div>
+        <div class="filter-group">
+          <label>COMMERCIALE</label>
+          <select class="form-input" id="filter-commerciale" onchange="loadProvvigioni()">
+            <option value="">Tutti</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary" onclick="calcolaProvvigioni()">🔄 Calcola Provvigioni</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Totale Provvigioni</div>
+          <div class="kpi-value" id="kpi-totale">€ 0</div>
+          <div class="kpi-sub">Periodo selezionato</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Contratti Validati</div>
+          <div class="kpi-value" id="kpi-contratti">0</div>
+          <div class="kpi-sub">Inclusi nel calcolo</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">Media per Commerciale</div>
+          <div class="kpi-value" id="kpi-media">€ 0</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Commerciali Attivi</div>
+          <div class="kpi-value" id="kpi-commerciali">0</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>💰 Dettaglio Provvigioni per Commerciale</h3>
+          <button class="btn btn-admin" onclick="esportaProvvigioni()">📥 Esporta Excel</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Commerciale</th>
+                <th>Contratti Validati</th>
+                <th>Importo Totale</th>
+                <th>Provvigione %</th>
+                <th>Provvigione €</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-provvigioni">
+              <tr><td colspan="7" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dettaglio Contratti -->
+      <div class="table-card" id="dettaglio-contratti" style="display:none">
+        <div class="table-card-header">
+          <h3>📄 Dettaglio Contratti - <span id="dettaglio-nome"></span></h3>
+          <button class="btn btn-secondary" onclick="chiudiDettaglio()">✕ Chiudi</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Ragione Sociale</th>
+                <th>Tipo Contratto</th>
+                <th>Importo</th>
+                <th>Provvigione</th>
+              </tr>
+            </thead>
+            <tbody id="table-dettaglio">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    
+    if (!Auth.isAdmin() && !Auth.isSupervisore()) {
+      alert('Accesso negato');
+      window.location.href = '../dashboard.html';
+    }
+
+    const currentUser = Auth.getUser();
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    if (Auth.isAdmin()) {
+      document.getElementById('tab-tipi').style.display = 'block';
+    }
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    // Set default month to current
+    const now = new Date();
+    document.getElementById('filter-mese').value = 
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    let commerciali = [];
+    let commissionRules = [];
+    let provvigioniData = [];
+
+    async function init() {
+      showLoading();
+      try {
+        // Load commerciali
+        commerciali = await sb('cna_users?ruolo=eq.commerciale&attivo=eq.true&select=id,nome,cognome&order=nome');
+        
+        const select = document.getElementById('filter-commerciale');
+        select.innerHTML = '<option value="">Tutti</option>' +
+          commerciali.map(c => `<option value="${c.id}">${c.nome} ${c.cognome}</option>`).join('');
+
+        // Load commission rules
+        commissionRules = await sb('commission_rules?select=*');
+
+        await loadProvvigioni();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento dati');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadProvvigioni() {
+      showLoading();
+      try {
+        const mese = document.getElementById('filter-mese').value;
+        if (!mese) {
+          alert('Seleziona un mese');
+          return;
+        }
+
+        const [year, month] = mese.split('-');
+        const startDate = new Date(year, month - 1, 1).toISOString();
+        const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+
+        // Load validated contracts for the month
+        const contratti = await sb(
+          `contratti?validato=eq.true&created_at=gte.${startDate}&created_at=lte.${endDate}&select=*&order=created_at.desc`
+        );
+
+        // Calculate commissions per commerciale
+        provvigioniData = [];
+        
+        for (const comm of commerciali) {
+          const contrattiComm = contratti.filter(c => c.created_by === comm.id);
+          
+          let totaleImporto = 0;
+          let totaleProvvigione = 0;
+
+          contrattiComm.forEach(c => {
+            // Get importo from contract
+            const importo = parseFloat(c.quota_primo_anno_importo || 0);
+            totaleImporto += importo;
+
+            // Find commission rule for contract type
+            const rule = commissionRules.find(r => r.tipo_contratto === c.tipo_contratto);
+            const percentuale = rule ? rule.percentuale : 10; // default 10%
+            
+            const provvigione = (importo * percentuale) / 100;
+            totaleProvvigione += provvigione;
+          });
+
+          if (contrattiComm.length > 0) {
+            provvigioniData.push({
+              commerciale: comm,
+              contratti: contrattiComm,
+              numContratti: contrattiComm.length,
+              importoTotale: totaleImporto,
+              provvigioneTotale: totaleProvvigione,
+              percentualeMedia: totaleImporto > 0 ? (totaleProvvigione / totaleImporto * 100) : 0
+            });
+          }
+        }
+
+        // Apply filter
+        const filterComm = document.getElementById('filter-commerciale').value;
+        let filtered = provvigioniData;
+        if (filterComm) {
+          filtered = provvigioniData.filter(p => p.commerciale.id === filterComm);
+        }
+
+        // Update KPIs
+        const totProvv = filtered.reduce((sum, p) => sum + p.provvigioneTotale, 0);
+        const totContr = filtered.reduce((sum, p) => sum + p.numContratti, 0);
+        
+        document.getElementById('kpi-totale').textContent = formatCurrency(totProvv);
+        document.getElementById('kpi-contratti').textContent = totContr;
+        document.getElementById('kpi-media').textContent = 
+          formatCurrency(filtered.length > 0 ? totProvv / filtered.length : 0);
+        document.getElementById('kpi-commerciali').textContent = filtered.length;
+
+        // Update table
+        const tbody = document.getElementById('table-provvigioni');
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px">Nessuna provvigione calcolata</td></tr>';
+        } else {
+          tbody.innerHTML = filtered.map(p => `
+            <tr>
+              <td><strong>${p.commerciale.nome} ${p.commerciale.cognome}</strong></td>
+              <td>${p.numContratti}</td>
+              <td>${formatCurrency(p.importoTotale)}</td>
+              <td>${p.percentualeMedia.toFixed(2)}%</td>
+              <td><strong class="text-success">${formatCurrency(p.provvigioneTotale)}</strong></td>
+              <td><span class="badge success">Calcolato</span></td>
+              <td>
+                <button class="btn btn-secondary" onclick='mostraDettaglio(${JSON.stringify(p).replace(/'/g, "&apos;")})'>👁️ Dettaglio</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento provvigioni');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function calcolaProvvigioni() {
+      if (!confirm('Ricalcolare le provvigioni per il mese selezionato?')) return;
+      
+      showLoading('Calcolo provvigioni...');
+      try {
+        // Save commissions to database
+        const mese = document.getElementById('filter-mese').value;
+        
+        for (const p of provvigioniData) {
+          await sb('commissions', 'POST', {
+            user_id: p.commerciale.id,
+            mese: mese,
+            num_contratti: p.numContratti,
+            importo_totale: p.importoTotale,
+            provvigione_totale: p.provvigioneTotale,
+            calcolato_da: currentUser.id,
+            calcolato_at: new Date().toISOString()
+          });
+        }
+
+        alert('Provvigioni calcolate e salvate con successo');
+        await loadProvvigioni();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nel calcolo delle provvigioni');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function mostraDettaglio(provvigione) {
+      document.getElementById('dettaglio-nome').textContent = 
+        `${provvigione.commerciale.nome} ${provvigione.commerciale.cognome}`;
+      
+      const tbody = document.getElementById('table-dettaglio');
+      tbody.innerHTML = provvigione.contratti.map(c => {
+        const importo = parseFloat(c.quota_primo_anno_importo || 0);
+        const rule = commissionRules.find(r => r.tipo_contratto === c.tipo_contratto);
+        const perc = rule ? rule.percentuale : 10;
+        const provv = (importo * perc) / 100;
+        
+        return `
+          <tr>
+            <td>${formatDate(c.created_at)}</td>
+            <td>${c.ragione_sociale || '-'}</td>
+            <td>${c.tipo_contratto || 'modulo adesione'}</td>
+            <td>${formatCurrency(importo)}</td>
+            <td>${formatCurrency(provv)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('dettaglio-contratti').style.display = 'block';
+    }
+
+    function chiudiDettaglio() {
+      document.getElementById('dettaglio-contratti').style.display = 'none';
+    }
+
+    function esportaProvvigioni() {
+      alert('Funzione esportazione Excel in sviluppo');
+    }
+
+    init();
+  </script>
+</body>
+</html>

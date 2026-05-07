@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Campagne</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="navigateTo('statistiche.html')">📈 Statistiche</button>
+      <button class="tab-btn" onclick="navigateTo('commerciali.html')" id="tab-commerciali" style="display:none">👥 Gestione Commerciali</button>
+      <button class="tab-btn" onclick="navigateTo('provvigioni.html')" id="tab-provvigioni" style="display:none">💰 Gestione Provvigioni</button>
+      <button class="tab-btn" onclick="navigateTo('tipi-contratto.html')" id="tab-tipi" style="display:none">📋 Tipi Contratto</button>
+      <button class="tab-btn active">🎯 Campagne</button>
+    </div>
+
+    <div class="page active">
+      
+      <h2 style="margin-bottom:24px">🎯 Gestione Campagne</h2>
+
+      <!-- Crea Nuova Campagna (Admin/Supervisore) -->
+      <div class="upload-card" id="crea-campagna" style="display:none;margin-bottom:24px">
+        <h3 class="upload-title">➕ Crea Nuova Campagna</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:16px;align-items:end">
+          <div class="form-group">
+            <label>Nome Campagna</label>
+            <input type="text" class="form-input" id="campagna-nome" placeholder="es. Campagna Primavera 2026">
+          </div>
+          <div class="form-group">
+            <label>Carica Excel Anagrafiche</label>
+            <input type="file" class="form-input" id="campagna-file" accept=".xlsx,.xls,.csv">
+          </div>
+          <button class="btn btn-primary" onclick="creaCampagna()">➕ Crea Campagna</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">
+          📌 Il file Excel deve contenere: ragione_sociale, telefono, email, indirizzo (opzionali: partita_iva, settore)
+        </p>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>STATO</label>
+          <select class="form-input" id="filter-stato" onchange="loadCampagne()">
+            <option value="">Tutte</option>
+            <option value="attiva">Attiva</option>
+            <option value="completata">Completata</option>
+            <option value="archiviata">Archiviata</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="resetFilters()">✕ Reset</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Campagne Totali</div>
+          <div class="kpi-value" id="kpi-totali">0</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Campagne Attive</div>
+          <div class="kpi-value" id="kpi-attive">0</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">Leads Totali</div>
+          <div class="kpi-value" id="kpi-leads">0</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Contratti Generati</div>
+          <div class="kpi-value" id="kpi-contratti">0</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>🎯 Elenco Campagne</h3>
+          <span id="badge-count">0 campagne</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome Campagna</th>
+                <th>Data Creazione</th>
+                <th>Leads Totali</th>
+                <th>Da Lavorare</th>
+                <th>Contattati</th>
+                <th>KO</th>
+                <th>Contratti</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-campagne">
+              <tr><td colspan="9" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    const currentUser = Auth.getUser();
+    
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    // Show tabs based on role
+    if (Auth.isAdmin() || Auth.isSupervisore()) {
+      document.getElementById('tab-commerciali').style.display = 'block';
+      document.getElementById('tab-provvigioni').style.display = 'block';
+      document.getElementById('crea-campagna').style.display = 'block';
+    }
+    if (Auth.isAdmin()) {
+      document.getElementById('tab-tipi').style.display = 'block';
+    }
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    let allCampagne = [];
+
+    async function init() {
+      showLoading();
+      try {
+        await loadCampagne();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento campagne');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadCampagne() {
+      showLoading();
+      try {
+        // Load campaigns
+        let query = 'campaigns?select=*,campaign_leads(count)&order=created_at.desc';
+        
+        // Operatori see only assigned campaigns
+        if (Auth.isOperatore()) {
+          // Get campaigns with leads assigned to this user
+          const myLeads = await sb(`campaign_leads?assegnato_a=eq.${currentUser.id}&select=campaign_id`);
+          const myCampaignIds = [...new Set(myLeads.map(l => l.campaign_id))];
+          
+          if (myCampaignIds.length > 0) {
+            query = `campaigns?id=in.(${myCampaignIds.join(',')})&select=*,campaign_leads(count)&order=created_at.desc`;
+          } else {
+            allCampagne = [];
+            updateUI([]);
+            return;
+          }
+        }
+
+        allCampagne = await sb(query);
+
+        // Apply filters
+        let filtered = allCampagne;
+        const filterStato = document.getElementById('filter-stato').value;
+        if (filterStato) {
+          filtered = filtered.filter(c => c.stato === filterStato);
+        }
+
+        // Get detailed stats for each campaign
+        for (const campagna of filtered) {
+          const leads = await sb(`campaign_leads?campaign_id=eq.${campagna.id}&select=stato`);
+          
+          campagna.stats = {
+            totali: leads.length,
+            da_lavorare: leads.filter(l => l.stato === 'da_lavorare').length,
+            contattati: leads.filter(l => l.stato === 'contattato').length,
+            ko: leads.filter(l => l.stato === 'ko').length,
+            contratti: leads.filter(l => l.stato === 'contratto_generato').length
+          };
+        }
+
+        updateUI(filtered);
+
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('table-campagne').innerHTML = 
+          '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--danger)">Errore caricamento campagne</td></tr>';
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function updateUI(campagne) {
+      // Update KPIs
+      const totLeads = campagne.reduce((sum, c) => sum + (c.stats?.totali || 0), 0);
+      const totContratti = campagne.reduce((sum, c) => sum + (c.stats?.contratti || 0), 0);
+      const attive = campagne.filter(c => c.stato === 'attiva').length;
+
+      document.getElementById('kpi-totali').textContent = campagne.length;
+      document.getElementById('kpi-attive').textContent = attive;
+      document.getElementById('kpi-leads').textContent = totLeads;
+      document.getElementById('kpi-contratti').textContent = totContratti;
+      document.getElementById('badge-count').textContent = `${campagne.length} campagne`;
+
+      // Update table
+      const tbody = document.getElementById('table-campagne');
+      if (campagne.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px">Nessuna campagna trovata</td></tr>';
+      } else {
+        tbody.innerHTML = campagne.map(c => {
+          const stats = c.stats || { totali: 0, da_lavorare: 0, contattati: 0, ko: 0, contratti: 0 };
+          const statoClass = c.stato === 'attiva' ? 'success' : c.stato === 'completata' ? 'warning' : '';
+          
+          return `
+            <tr>
+              <td><strong>${c.nome}</strong></td>
+              <td>${formatDate(c.created_at)}</td>
+              <td>${stats.totali}</td>
+              <td><span class="badge">${stats.da_lavorare}</span></td>
+              <td><span class="badge success">${stats.contattati}</span></td>
+              <td><span class="badge danger">${stats.ko}</span></td>
+              <td><span class="badge success">${stats.contratti}</span></td>
+              <td><span class="badge ${statoClass}">${c.stato || 'attiva'}</span></td>
+              <td>
+                <button class="btn btn-primary" onclick="apriCampagna('${c.id}')">👁️ Apri</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    async function creaCampagna() {
+      const nome = document.getElementById('campagna-nome').value.trim();
+      const fileInput = document.getElementById('campagna-file');
+      const file = fileInput.files[0];
+
+      if (!nome) {
+        alert('Inserisci il nome della campagna');
+        return;
+      }
+
+      if (!file) {
+        alert('Carica un file Excel con le anagrafiche');
+        return;
+      }
+
+      showLoading('Creazione campagna e caricamento leads...');
+      try {
+        // Create campaign
+        const newCampaign = await sb('campaigns', 'POST', {
+          nome: nome,
+          stato: 'attiva',
+          created_by: currentUser.id
+        });
+
+        const campaignId = newCampaign[0].id;
+
+        // Parse Excel file (simplified - in production use a proper Excel parser)
+        alert('Funzione caricamento Excel in sviluppo. Per ora la campagna è stata creata vuota.');
+
+        // Reset form
+        document.getElementById('campagna-nome').value = '';
+        fileInput.value = '';
+
+        await loadCampagne();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nella creazione della campagna');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function apriCampagna(id) {
+      window.location.href = `campagne-dettaglio.html?id=${id}`;
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-stato').value = '';
+      loadCampagne();
+    }
+
+    init();
+  </script>
+</body>
+</html>

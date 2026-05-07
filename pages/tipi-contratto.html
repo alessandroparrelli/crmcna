@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Tipi Contratto</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="navigateTo('statistiche.html')">📈 Statistiche</button>
+      <button class="tab-btn" onclick="navigateTo('commerciali.html')">👥 Gestione Commerciali</button>
+      <button class="tab-btn" onclick="navigateTo('provvigioni.html')">💰 Gestione Provvigioni</button>
+      <button class="tab-btn active">📋 Tipi Contratto</button>
+      <button class="tab-btn" onclick="navigateTo('campagne.html')">🎯 Campagne</button>
+    </div>
+
+    <div class="page active">
+      
+      <h2 style="margin-bottom:24px">📋 Gestione Tipi Contratto e Provvigioni</h2>
+
+      <!-- Add New -->
+      <div class="upload-card" style="margin-bottom:24px">
+        <h3 class="upload-title">➕ Nuovo Tipo Contratto</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:16px;align-items:end">
+          <div class="form-group">
+            <label>Nome Tipo Contratto</label>
+            <input type="text" class="form-input" id="nuovo-nome" placeholder="es. Modulo Adesione">
+          </div>
+          <div class="form-group">
+            <label>Provvigione %</label>
+            <input type="number" class="form-input" id="nuovo-percentuale" placeholder="10" step="0.01" min="0" max="100">
+          </div>
+          <div class="form-group">
+            <label>Descrizione (opzionale)</label>
+            <input type="text" class="form-input" id="nuovo-descrizione" placeholder="Descrizione">
+          </div>
+          <button class="btn btn-primary" onclick="aggiungiTipo()">➕ Aggiungi</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📋 Elenco Tipi Contratto</h3>
+          <span id="badge-count">0 tipi</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome Tipo Contratto</th>
+                <th>Provvigione %</th>
+                <th>Descrizione</th>
+                <th>Regole Commissione</th>
+                <th>Data Creazione</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-tipi">
+              <tr><td colspan="6" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Edit -->
+  <div id="modal-edit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this) chiudiModal()">
+    <div class="login-card" style="max-width:500px;width:90%">
+      <h3 style="margin-bottom:20px">✏️ Modifica Tipo Contratto</h3>
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" class="form-input" id="edit-nome">
+      </div>
+      <div class="form-group">
+        <label>Provvigione %</label>
+        <input type="number" class="form-input" id="edit-percentuale" step="0.01" min="0" max="100">
+      </div>
+      <div class="form-group">
+        <label>Descrizione</label>
+        <input type="text" class="form-input" id="edit-descrizione">
+      </div>
+      <div style="display:flex;gap:12px;margin-top:20px">
+        <button class="btn btn-primary" onclick="salvaModifiche()">💾 Salva</button>
+        <button class="btn btn-secondary" onclick="chiudiModal()">✕ Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    
+    if (!Auth.isAdmin()) {
+      alert('Accesso negato - Solo Admin');
+      window.location.href = '../dashboard.html';
+    }
+
+    const currentUser = Auth.getUser();
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    let tipiContratto = [];
+    let commissionRules = [];
+    let editingId = null;
+
+    async function init() {
+      showLoading();
+      try {
+        await loadTipi();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento dati');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadTipi() {
+      showLoading();
+      try {
+        tipiContratto = await sb('contract_types?select=*&order=created_at.desc');
+        commissionRules = await sb('commission_rules?select=*');
+
+        document.getElementById('badge-count').textContent = `${tipiContratto.length} tipi`;
+
+        const tbody = document.getElementById('table-tipi');
+        if (tipiContratto.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px">Nessun tipo contratto definito</td></tr>';
+        } else {
+          tbody.innerHTML = tipiContratto.map(t => {
+            const rule = commissionRules.find(r => r.tipo_contratto === t.nome);
+            const percentuale = rule ? rule.percentuale : '-';
+            
+            return `
+              <tr>
+                <td><strong>${t.nome}</strong></td>
+                <td><span class="badge success">${percentuale}%</span></td>
+                <td>${t.descrizione || '-'}</td>
+                <td>${rule ? 'Configurata' : 'Non configurata'}</td>
+                <td>${formatDate(t.created_at)}</td>
+                <td>
+                  <button class="btn btn-secondary" onclick="modificaTipo('${t.id}')">✏️ Modifica</button>
+                  <button class="btn btn-danger" onclick="eliminaTipo('${t.id}', '${t.nome}')">🗑️ Elimina</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function aggiungiTipo() {
+      const nome = document.getElementById('nuovo-nome').value.trim();
+      const percentuale = parseFloat(document.getElementById('nuovo-percentuale').value);
+      const descrizione = document.getElementById('nuovo-descrizione').value.trim();
+
+      if (!nome) {
+        alert('Inserisci il nome del tipo contratto');
+        return;
+      }
+
+      if (isNaN(percentuale) || percentuale < 0 || percentuale > 100) {
+        alert('Inserisci una percentuale valida (0-100)');
+        return;
+      }
+
+      showLoading('Creazione tipo contratto...');
+      try {
+        // Create contract type
+        const newType = await sb('contract_types', 'POST', {
+          nome: nome,
+          descrizione: descrizione || null,
+          created_by: currentUser.id
+        });
+
+        // Create commission rule
+        await sb('commission_rules', 'POST', {
+          tipo_contratto: nome,
+          percentuale: percentuale,
+          created_by: currentUser.id
+        });
+
+        alert('Tipo contratto creato con successo');
+        
+        // Reset form
+        document.getElementById('nuovo-nome').value = '';
+        document.getElementById('nuovo-percentuale').value = '';
+        document.getElementById('nuovo-descrizione').value = '';
+
+        await loadTipi();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nella creazione: ' + error.message);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function modificaTipo(id) {
+      const tipo = tipiContratto.find(t => t.id === id);
+      if (!tipo) return;
+
+      const rule = commissionRules.find(r => r.tipo_contratto === tipo.nome);
+
+      editingId = id;
+      document.getElementById('edit-nome').value = tipo.nome;
+      document.getElementById('edit-percentuale').value = rule ? rule.percentuale : 0;
+      document.getElementById('edit-descrizione').value = tipo.descrizione || '';
+      document.getElementById('modal-edit').style.display = 'flex';
+    }
+
+    async function salvaModifiche() {
+      const nome = document.getElementById('edit-nome').value.trim();
+      const percentuale = parseFloat(document.getElementById('edit-percentuale').value);
+      const descrizione = document.getElementById('edit-descrizione').value.trim();
+
+      if (!nome || isNaN(percentuale)) {
+        alert('Compila tutti i campi obbligatori');
+        return;
+      }
+
+      showLoading('Salvataggio...');
+      try {
+        // Update contract type
+        await sb(`contract_types?id=eq.${editingId}`, 'PATCH', {
+          nome: nome,
+          descrizione: descrizione || null
+        });
+
+        // Update or create commission rule
+        const existingRule = commissionRules.find(r => r.tipo_contratto === nome);
+        if (existingRule) {
+          await sb(`commission_rules?id=eq.${existingRule.id}`, 'PATCH', {
+            percentuale: percentuale
+          });
+        } else {
+          await sb('commission_rules', 'POST', {
+            tipo_contratto: nome,
+            percentuale: percentuale,
+            created_by: currentUser.id
+          });
+        }
+
+        alert('Modifiche salvate con successo');
+        chiudiModal();
+        await loadTipi();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nel salvataggio');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function chiudiModal() {
+      document.getElementById('modal-edit').style.display = 'none';
+      editingId = null;
+    }
+
+    async function eliminaTipo(id, nome) {
+      if (!confirm(`Confermi l'eliminazione del tipo contratto "${nome}"?\n\nATTENZIONE: Questa azione non può essere annullata.`)) {
+        return;
+      }
+
+      showLoading('Eliminazione...');
+      try {
+        // Delete commission rules first
+        await sb(`commission_rules?tipo_contratto=eq.${encodeURIComponent(nome)}`, 'DELETE');
+        
+        // Delete contract type
+        await sb(`contract_types?id=eq.${id}`, 'DELETE');
+
+        alert('Tipo contratto eliminato con successo');
+        await loadTipi();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nell\'eliminazione');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

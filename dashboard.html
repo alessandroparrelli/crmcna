@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Dashboard</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="navigateTo('dashboard.html')">
+        📊 Dashboard
+      </button>
+      <button class="tab-btn" onclick="navigateTo('pages/statistiche.html')">
+        📈 Statistiche
+      </button>
+      <button class="tab-btn" onclick="navigateTo('pages/commerciali.html')" id="tab-commerciali" style="display:none">
+        👥 Gestione Commerciali
+      </button>
+      <button class="tab-btn" onclick="navigateTo('pages/provvigioni.html')" id="tab-provvigioni" style="display:none">
+        💰 Gestione Provvigioni
+      </button>
+      <button class="tab-btn" onclick="navigateTo('pages/tipi-contratto.html')" id="tab-tipi" style="display:none">
+        📋 Tipi Contratto
+      </button>
+      <button class="tab-btn" onclick="navigateTo('pages/campagne.html')">
+        🎯 Campagne
+      </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="page active">
+      
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>TIPO CONTRATTO</label>
+          <select class="form-input" id="filter-tipo" onchange="loadContratti()">
+            <option value="">Tutti</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>STATO</label>
+          <select class="form-input" id="filter-stato" onchange="loadContratti()">
+            <option value="">Tutti</option>
+            <option value="firmato">Firmato</option>
+            <option value="in_attesa">In attesa</option>
+          </select>
+        </div>
+        <div class="filter-group" id="filter-utente-group" style="display:none">
+          <label>UTENTE</label>
+          <select class="form-input" id="filter-utente" onchange="loadContratti()">
+            <option value="">Tutti</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="resetFilters()">✕ Reset</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Contratti Totali</div>
+          <div class="kpi-value" id="kpi-totali">0</div>
+          <div class="kpi-sub">Tutti i contratti</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Contratti Firmati</div>
+          <div class="kpi-value" id="kpi-firmati">0</div>
+          <div class="kpi-sub">Stato: firmato</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">In Attesa</div>
+          <div class="kpi-value" id="kpi-attesa">0</div>
+          <div class="kpi-sub">Da firmare</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Mese Corrente</div>
+          <div class="kpi-value" id="kpi-mese">0</div>
+          <div class="kpi-sub">Questo mese</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📄 Tutti i Contratti da Signature</h3>
+          <span id="badge-count">0 contratti</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ragione Sociale</th>
+                <th>Nome</th>
+                <th>Tipo Contratto</th>
+                <th>Data Creazione</th>
+                <th>Creato Da</th>
+                <th>Stato</th>
+              </tr>
+            </thead>
+            <tbody id="table-contratti">
+              <tr><td colspan="6" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Auth check
+    Auth.requireAuth();
+    const currentUser = Auth.getUser();
+    
+    // Set user name
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    // Show admin tabs
+    if (Auth.isAdmin() || Auth.isSupervisore()) {
+      document.getElementById('tab-commerciali').style.display = 'block';
+      document.getElementById('tab-provvigioni').style.display = 'block';
+    }
+    if (Auth.isAdmin()) {
+      document.getElementById('tab-tipi').style.display = 'block';
+      document.getElementById('filter-utente-group').style.display = 'block';
+    }
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    let allContratti = [];
+    let allUsers = [];
+
+    async function init() {
+      showLoading('Caricamento dati...');
+      try {
+        // Load users for filter
+        allUsers = await sb('cna_users?select=id,nome,cognome&attivo=eq.true&order=nome');
+        
+        if (Auth.isAdmin()) {
+          const userSelect = document.getElementById('filter-utente');
+          userSelect.innerHTML = '<option value="">Tutti</option>' +
+            allUsers.map(u => `<option value="${u.id}">${u.nome} ${u.cognome}</option>`).join('');
+        }
+
+        // Load contract types
+        const types = await sb('contract_types?select=nome&order=nome');
+        const typeSelect = document.getElementById('filter-tipo');
+        typeSelect.innerHTML = '<option value="">Tutti</option>' +
+          types.map(t => `<option value="${t.nome}">${t.nome}</option>`).join('');
+
+        // Load contratti
+        await loadContratti();
+        
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nel caricamento dei dati');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadContratti() {
+      showLoading('Caricamento contratti...');
+      try {
+        let query = 'contratti?select=*,created_by&order=created_at.desc';
+        
+        // Filter by user if not admin
+        if (!Auth.isAdmin()) {
+          query += `&created_by=eq.${currentUser.id}`;
+        }
+
+        allContratti = await sb(query);
+
+        // Apply filters
+        let filtered = allContratti;
+
+        const filterTipo = document.getElementById('filter-tipo').value;
+        if (filterTipo) {
+          filtered = filtered.filter(c => c.tipo_contratto === filterTipo);
+        }
+
+        const filterStato = document.getElementById('filter-stato').value;
+        if (filterStato) {
+          filtered = filtered.filter(c => c.stato === filterStato);
+        }
+
+        if (Auth.isAdmin()) {
+          const filterUtente = document.getElementById('filter-utente').value;
+          if (filterUtente) {
+            filtered = filtered.filter(c => c.created_by === filterUtente);
+          }
+        }
+
+        // Update KPIs
+        document.getElementById('kpi-totali').textContent = filtered.length;
+        document.getElementById('kpi-firmati').textContent = 
+          filtered.filter(c => c.stato === 'firmato').length;
+        document.getElementById('kpi-attesa').textContent = 
+          filtered.filter(c => c.stato !== 'firmato').length;
+        
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        thisMonth.setHours(0,0,0,0);
+        document.getElementById('kpi-mese').textContent = 
+          filtered.filter(c => new Date(c.created_at) >= thisMonth).length;
+
+        document.getElementById('badge-count').textContent = `${filtered.length} contratti`;
+
+        // Update table
+        const tbody = document.getElementById('table-contratti');
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px">Nessun contratto trovato</td></tr>';
+        } else {
+          tbody.innerHTML = filtered.map(c => {
+            const user = allUsers.find(u => u.id === c.created_by);
+            const userName = user ? `${user.nome} ${user.cognome}` : '-';
+            
+            return `
+              <tr>
+                <td><strong>${c.ragione_sociale || '-'}</strong></td>
+                <td>${c.nome || ''} ${c.cognome || ''}</td>
+                <td><span class="badge">${c.tipo_contratto || 'modulo adesione'}</span></td>
+                <td>${formatDate(c.created_at)}</td>
+                <td>${userName}</td>
+                <td><span class="badge ${c.stato === 'firmato' ? 'success' : 'warning'}">${c.stato || 'in attesa'}</span></td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (error) {
+        console.error('Error loading contratti:', error);
+        document.getElementById('table-contratti').innerHTML = 
+          '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger)">Errore caricamento contratti</td></tr>';
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-tipo').value = '';
+      document.getElementById('filter-stato').value = '';
+      if (Auth.isAdmin()) {
+        document.getElementById('filter-utente').value = '';
+      }
+      loadContratti();
+    }
+
+    init();
+  </script>
+</body>
+</html>

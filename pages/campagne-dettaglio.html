@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM CNA - Dettaglio Campagna</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-msg">Caricamento...</div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" alt="CNA Roma" class="logo-img">
+        <h1 class="header-title">CRM CNA</h1>
+      </div>
+      <div class="header-right-wrap">
+        <div class="user-chip">
+          <span id="user-name"></span>
+          <div class="user-dot"></div>
+        </div>
+        <button class="btn btn-logout" onclick="Auth.logout()">Esci</button>
+      </div>
+    </header>
+
+    <div class="tabs-bar">
+      <button class="tab-btn" onclick="navigateTo('../dashboard.html')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="navigateTo('campagne.html')">🎯 Campagne</button>
+    </div>
+
+    <div class="page active">
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h2 id="campagna-title">📋 Campagna</h2>
+        <button class="btn btn-secondary" onclick="window.history.back()">← Indietro</button>
+      </div>
+
+      <!-- Aggiungi Lead (Admin/Supervisore) -->
+      <div class="upload-card" id="aggiungi-lead" style="display:none;margin-bottom:24px">
+        <h3 class="upload-title">➕ Aggiungi Lead</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:16px;align-items:end">
+          <div class="form-group">
+            <label>Ragione Sociale</label>
+            <input type="text" class="form-input" id="lead-ragione" placeholder="Nome azienda">
+          </div>
+          <div class="form-group">
+            <label>Telefono</label>
+            <input type="text" class="form-input" id="lead-telefono" placeholder="+39...">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-input" id="lead-email" placeholder="email@azienda.it">
+          </div>
+          <div class="form-group">
+            <label>Assegna a</label>
+            <select class="form-input" id="lead-assegna">
+              <option value="">Nessuno</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="aggiungiLead()">➕ Aggiungi</button>
+        </div>
+        <div style="margin-top:12px">
+          <label style="font-size:12px;color:var(--text-secondary)">
+            <input type="checkbox" id="lead-da-anagrafica"> Seleziona da Anagrafiche esistenti
+          </label>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>STATO</label>
+          <select class="form-input" id="filter-stato" onchange="loadLeads()">
+            <option value="">Tutti</option>
+            <option value="da_lavorare">Da Lavorare</option>
+            <option value="contattato">Contattato</option>
+            <option value="da_richiamare">Da Richiamare</option>
+            <option value="ko">KO</option>
+            <option value="contratto_generato">Contratto Generato</option>
+          </select>
+        </div>
+        <div class="filter-group" id="filter-operatore-group" style="display:none">
+          <label>OPERATORE</label>
+          <select class="form-input" id="filter-operatore" onchange="loadLeads()">
+            <option value="">Tutti</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="resetFilters()">✕ Reset</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-strip">
+        <div class="kpi-card c1">
+          <div class="kpi-label">Leads Totali</div>
+          <div class="kpi-value" id="kpi-totali">0</div>
+        </div>
+        <div class="kpi-card c2">
+          <div class="kpi-label">Da Lavorare</div>
+          <div class="kpi-value" id="kpi-da-lavorare">0</div>
+        </div>
+        <div class="kpi-card c3">
+          <div class="kpi-label">Contattati</div>
+          <div class="kpi-value" id="kpi-contattati">0</div>
+        </div>
+        <div class="kpi-card c4">
+          <div class="kpi-label">Contratti</div>
+          <div class="kpi-value" id="kpi-contratti">0</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>📞 Leads Campagna</h3>
+          <span id="badge-count">0 leads</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ragione Sociale</th>
+                <th>Telefono</th>
+                <th>Email</th>
+                <th>Stato</th>
+                <th>Assegnato a</th>
+                <th>Ultimo Contatto</th>
+                <th>Note</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-leads">
+              <tr><td colspan="8" style="text-align:center;padding:40px">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Gestione Lead -->
+  <div id="modal-lead" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this) chiudiModal()">
+    <div class="login-card" style="max-width:600px;width:90%">
+      <h3 style="margin-bottom:20px" id="modal-title">📞 Gestione Lead</h3>
+      <div class="form-group">
+        <label>Stato</label>
+        <select class="form-input" id="modal-stato">
+          <option value="da_lavorare">Da Lavorare</option>
+          <option value="contattato">Contattato</option>
+          <option value="da_richiamare">Da Richiamare</option>
+          <option value="ko">KO</option>
+          <option value="contratto_generato">Contratto Generato</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea class="form-input" id="modal-note" rows="4" placeholder="Inserisci note sulla chiamata..."></textarea>
+      </div>
+      <div class="form-group" id="modal-assegna-group" style="display:none">
+        <label>Riassegna a</label>
+        <select class="form-input" id="modal-assegna">
+          <option value="">Nessuno</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:20px">
+        <button class="btn btn-primary" onclick="salvaLead()">💾 Salva</button>
+        <button class="btn btn-secondary" onclick="chiudiModal()">✕ Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    Auth.requireAuth();
+    const currentUser = Auth.getUser();
+    
+    document.getElementById('user-name').textContent = 
+      `${currentUser.nome} ${currentUser.cognome} (${currentUser.ruolo})`;
+
+    function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    // Get campaign ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const campaignId = urlParams.get('id');
+
+    if (!campaignId) {
+      alert('ID campagna non valido');
+      window.location.href = 'campagne.html';
+    }
+
+    let campagna = null;
+    let allLeads = [];
+    let operatori = [];
+    let editingLeadId = null;
+
+    async function init() {
+      showLoading();
+      try {
+        // Load campaign
+        const campaigns = await sb(`campaigns?id=eq.${campaignId}&select=*`);
+        if (!campaigns || campaigns.length === 0) {
+          alert('Campagna non trovata');
+          window.location.href = 'campagne.html';
+          return;
+        }
+        
+        campagna = campaigns[0];
+        document.getElementById('campagna-title').textContent = `📋 ${campagna.nome}`;
+
+        // Load operatori
+        operatori = await sb('cna_users?ruolo=eq.utente&attivo=eq.true&select=id,nome,cognome&order=nome');
+        
+        // Populate selects
+        const selectAssegna = document.getElementById('lead-assegna');
+        const selectModalAssegna = document.getElementById('modal-assegna');
+        const selectFilterOp = document.getElementById('filter-operatore');
+        
+        const options = '<option value="">Nessuno</option>' + 
+          operatori.map(o => `<option value="${o.id}">${o.nome} ${o.cognome}</option>`).join('');
+        
+        selectAssegna.innerHTML = options;
+        selectModalAssegna.innerHTML = options;
+        selectFilterOp.innerHTML = '<option value="">Tutti</option>' + 
+          operatori.map(o => `<option value="${o.id}">${o.nome} ${o.cognome}</option>`).join('');
+
+        // Show controls based on role
+        if (Auth.isAdmin() || Auth.isSupervisore()) {
+          document.getElementById('aggiungi-lead').style.display = 'block';
+          document.getElementById('filter-operatore-group').style.display = 'block';
+          document.getElementById('modal-assegna-group').style.display = 'block';
+        }
+
+        await loadLeads();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore caricamento campagna');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadLeads() {
+      showLoading();
+      try {
+        let query = `campaign_leads?campaign_id=eq.${campaignId}&select=*&order=created_at.desc`;
+        
+        // Operatori see only their leads
+        if (Auth.isOperatore()) {
+          query += `&assegnato_a=eq.${currentUser.id}`;
+        }
+
+        allLeads = await sb(query);
+
+        // Apply filters
+        let filtered = allLeads;
+
+        const filterStato = document.getElementById('filter-stato').value;
+        if (filterStato) {
+          filtered = filtered.filter(l => l.stato === filterStato);
+        }
+
+        if (Auth.isAdmin() || Auth.isSupervisore()) {
+          const filterOp = document.getElementById('filter-operatore').value;
+          if (filterOp) {
+            filtered = filtered.filter(l => l.assegnato_a === filterOp);
+          }
+        }
+
+        // Update KPIs
+        document.getElementById('kpi-totali').textContent = filtered.length;
+        document.getElementById('kpi-da-lavorare').textContent = 
+          filtered.filter(l => l.stato === 'da_lavorare').length;
+        document.getElementById('kpi-contattati').textContent = 
+          filtered.filter(l => l.stato === 'contattato' || l.stato === 'da_richiamare').length;
+        document.getElementById('kpi-contratti').textContent = 
+          filtered.filter(l => l.stato === 'contratto_generato').length;
+        document.getElementById('badge-count').textContent = `${filtered.length} leads`;
+
+        // Update table
+        const tbody = document.getElementById('table-leads');
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px">Nessun lead trovato</td></tr>';
+        } else {
+          tbody.innerHTML = filtered.map(l => {
+            const operatore = operatori.find(o => o.id === l.assegnato_a);
+            const opName = operatore ? `${operatore.nome} ${operatore.cognome}` : '-';
+            
+            const statoClass = {
+              'da_lavorare': '',
+              'contattato': 'success',
+              'da_richiamare': 'warning',
+              'ko': 'danger',
+              'contratto_generato': 'success'
+            }[l.stato] || '';
+            
+            return `
+              <tr>
+                <td><strong>${l.ragione_sociale || '-'}</strong></td>
+                <td>${l.telefono || '-'}</td>
+                <td>${l.email || '-'}</td>
+                <td><span class="badge ${statoClass}">${l.stato?.replace('_', ' ') || 'da lavorare'}</span></td>
+                <td>${opName}</td>
+                <td>${l.ultimo_contatto ? formatDate(l.ultimo_contatto) : '-'}</td>
+                <td>${l.note ? l.note.substring(0, 30) + '...' : '-'}</td>
+                <td>
+                  <button class="btn btn-secondary" onclick='gestisciLead(${JSON.stringify(l).replace(/'/g, "&apos;")})'>✏️ Gestisci</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function aggiungiLead() {
+      const ragione = document.getElementById('lead-ragione').value.trim();
+      const telefono = document.getElementById('lead-telefono').value.trim();
+      const email = document.getElementById('lead-email').value.trim();
+      const assegna = document.getElementById('lead-assegna').value;
+
+      if (!ragione) {
+        alert('Inserisci la ragione sociale');
+        return;
+      }
+
+      showLoading('Aggiunta lead...');
+      try {
+        await sb('campaign_leads', 'POST', {
+          campaign_id: campaignId,
+          ragione_sociale: ragione,
+          telefono: telefono || null,
+          email: email || null,
+          assegnato_a: assegna || null,
+          stato: 'da_lavorare',
+          created_by: currentUser.id
+        });
+
+        alert('Lead aggiunto con successo');
+        
+        // Reset form
+        document.getElementById('lead-ragione').value = '';
+        document.getElementById('lead-telefono').value = '';
+        document.getElementById('lead-email').value = '';
+        document.getElementById('lead-assegna').value = '';
+
+        await loadLeads();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nell\'aggiunta del lead');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function gestisciLead(lead) {
+      editingLeadId = lead.id;
+      document.getElementById('modal-title').textContent = `📞 ${lead.ragione_sociale}`;
+      document.getElementById('modal-stato').value = lead.stato || 'da_lavorare';
+      document.getElementById('modal-note').value = lead.note || '';
+      
+      if (Auth.isAdmin() || Auth.isSupervisore()) {
+        document.getElementById('modal-assegna').value = lead.assegnato_a || '';
+      }
+      
+      document.getElementById('modal-lead').style.display = 'flex';
+    }
+
+    async function salvaLead() {
+      const stato = document.getElementById('modal-stato').value;
+      const note = document.getElementById('modal-note').value.trim();
+      let assegna = null;
+      
+      if (Auth.isAdmin() || Auth.isSupervisore()) {
+        assegna = document.getElementById('modal-assegna').value;
+      }
+
+      showLoading('Salvataggio...');
+      try {
+        const updates = {
+          stato: stato,
+          note: note || null,
+          ultimo_contatto: new Date().toISOString(),
+          ultimo_aggiornamento_da: currentUser.id
+        };
+
+        if (assegna !== null) {
+          updates.assegnato_a = assegna || null;
+        }
+
+        await sb(`campaign_leads?id=eq.${editingLeadId}`, 'PATCH', updates);
+
+        alert('Lead aggiornato con successo');
+        chiudiModal();
+        await loadLeads();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Errore nel salvataggio');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function chiudiModal() {
+      document.getElementById('modal-lead').style.display = 'none';
+      editingLeadId = null;
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-stato').value = '';
+      if (Auth.isAdmin() || Auth.isSupervisore()) {
+        document.getElementById('filter-operatore').value = '';
+      }
+      loadLeads();
+    }
+
+    init();
+  </script>
+</body>
+</html>
