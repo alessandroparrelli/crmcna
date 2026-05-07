@@ -193,7 +193,7 @@
     async function loadContratti() {
       showLoading('Caricamento contratti...');
       try {
-        let query = 'contratti?select=*,created_by&order=created_at.desc';
+        let query = 'contratti?select=*&order=created_at.desc';
         
         // Filter by user if not admin
         if (!Auth.isAdmin()) {
