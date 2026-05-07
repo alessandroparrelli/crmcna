@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRM CNA - Statistiche</title>
-  <link rel="stylesheet" href="../css/main.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CNA - Statistiche</title>
+<link rel="stylesheet" href="../css/crm.css">
 </head>
 <body>
 <header>
   <div class="header-left">
     <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
-    <h1 class="header-title">CRM CNA</h1>
+    <span class="header-title">CRM CNA</span>
   </div>
   <div class="header-right-wrap">
-    <div class="user-chip"><span id="user-name">...</span><div class="user-dot"></div></div>
-    <button class="btn btn-logout" onclick="doLogout()">Esci</button>
+    <div class="user-chip"><span id="uname"></span><div class="user-dot"></div></div>
+    <button class="btn btn-logout" onclick="logout()">Esci</button>
   </div>
 </header>
 <div class="tabs-bar">
@@ -26,12 +26,12 @@
   <button class="tab-btn" onclick="location.href='campagne.html'">🎯 Campagne</button>
 </div>
 <div class="page active">
-  <h2 style="margin-bottom:20px">📈 Le Mie Statistiche</h2>
+  <h2 style="margin-bottom:20px;font-size:20px;font-weight:800">📈 Le Mie Statistiche</h2>
   <div class="filters-bar">
     <div class="filter-group">
       <label>PERIODO</label>
       <select class="form-input" id="periodo" onchange="load()">
-        <option value="all">Tutto</option>
+        <option value="all">Tutto il periodo</option>
         <option value="year">Quest'anno</option>
         <option value="month">Questo mese</option>
       </select>
@@ -48,7 +48,7 @@
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr><th>Tipo</th><th>Totale</th><th>Firmati</th><th>In Attesa</th><th>Conversione</th></tr></thead>
-        <tbody id="t1"><tr><td colspan="5" style="text-align:center;padding:30px">Caricamento...</td></tr></tbody>
+        <tbody id="t1"><tr><td colspan="5" style="text-align:center;padding:30px;color:#94A3B8">Caricamento...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -57,43 +57,45 @@
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr><th>Mese</th><th>Totale</th><th>Firmati</th><th>Conversione</th></tr></thead>
-        <tbody id="t2"><tr><td colspan="4" style="text-align:center;padding:30px">Caricamento...</td></tr></tbody>
+        <tbody id="t2"><tr><td colspan="4" style="text-align:center;padding:30px;color:#94A3B8">Caricamento...</td></tr></tbody>
       </table>
     </div>
   </div>
 </div>
 <script>
-const URL='https://ohahuqlfzqckaevaffbt.supabase.co';
-const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020';
-const sess=localStorage.getItem('cna_crm');
-if(!sess){location.href='../index.html';}
-const me=JSON.parse(sess);
-document.getElementById('user-name').textContent=me.nome+' '+me.cognome;
-if(me.ruolo==='admin'||me.ruolo==='supervisore'){document.getElementById('t-comm').style.display='';document.getElementById('t-prov').style.display='';}
-if(me.ruolo==='admin'){document.getElementById('t-tipi').style.display='';}
-function doLogout(){localStorage.removeItem('cna_crm');location.href='../index.html';}
-async function get(ep){const r=await fetch(URL+'/rest/v1/'+ep,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();return Array.isArray(d)?d:[];}
-function fmtDate(s){if(!s)return'-';return new Date(s).toLocaleDateString('it-IT');}
-function badge(t,c){const m={success:'#D1FAE5|#065F46',warning:'#FEF3C7|#92400E',info:'#DBEAFE|#1E40AF'};const[bg,fg]=(m[c]||'#F1F5F9|#475569').split('|');return '<span style="background:'+bg+';color:'+fg+';padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">'+t+'</span>';}
 
+const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
+const _s=localStorage.getItem("cna_crm");if(!_s){location.href="../index.html";}
+const me=JSON.parse(_s);
+document.getElementById("uname").textContent=me.nome+" "+me.cognome;
+if(me.ruolo==="admin"||me.ruolo==="supervisore"){var _e=document.getElementById("t-comm");if(_e)_e.style.display="";_e=document.getElementById("t-prov");if(_e)_e.style.display="";}
+if(me.ruolo==="admin"){var _e=document.getElementById("t-tipi");if(_e)_e.style.display="";}
+async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();return Array.isArray(d)?d:[];}
+async function dbPost(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
+async function dbPatch(ep,b){await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});}
+async function dbDel(ep){await fetch(SB+"/rest/v1/"+ep,{method:"DELETE",headers:{"apikey":SK,"Authorization":"Bearer "+SK}});}
+function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
+function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFractionDigits:2});}
+function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
+function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
 async function load(){
   try{
-    let list=await get('contratti?select=stato,tipo_contratto,created_at,quota_primo_anno_importo&created_by=eq.'+me.id+'&order=created_at.desc');
-    const p=document.getElementById('periodo').value;
-    const now=new Date();
-    if(p==='year') list=list.filter(c=>new Date(c.created_at).getFullYear()===now.getFullYear());
-    else if(p==='month') list=list.filter(c=>{const d=new Date(c.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});
-    const firm=list.filter(c=>c.stato==='firmato');
+    let list=await dbGet("contratti?select=stato,tipo_contratto,created_at,quota_primo_anno_importo&created_by=eq."+me.id+"&order=created_at.desc");
+    const p=document.getElementById("periodo").value,now=new Date();
+    if(p==="year")list=list.filter(c=>new Date(c.created_at).getFullYear()===now.getFullYear());
+    else if(p==="month")list=list.filter(c=>{const d=new Date(c.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});
+    const firm=list.filter(c=>c.stato==="firmato");
     const imp=list.reduce((s,c)=>s+parseFloat(c.quota_primo_anno_importo||0),0);
-    document.getElementById('k1').textContent=list.length;
-    document.getElementById('k2').textContent=firm.length;
-    document.getElementById('k3').textContent=list.length?(firm.length/list.length*100).toFixed(1)+'%':'0%';
-    document.getElementById('k4').textContent='€'+Math.round(imp).toLocaleString('it-IT');
-    const byT={};list.forEach(c=>{const t=c.tipo_contratto||'modulo adesione';if(!byT[t])byT[t]={tot:0,firm:0};byT[t].tot++;if(c.stato==='firmato')byT[t].firm++;});
-    document.getElementById('t1').innerHTML=Object.entries(byT).length?Object.entries(byT).map(([t,s])=>'<tr><td>'+t+'</td><td>'+s.tot+'</td><td>'+s.firm+'</td><td>'+(s.tot-s.firm)+'</td><td>'+badge((s.tot?(s.firm/s.tot*100).toFixed(1):0)+'%','success')+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;padding:30px">Nessun dato</td></tr>';
-    const byM={};list.forEach(c=>{const d=new Date(c.created_at);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');if(!byM[k])byM[k]={tot:0,firm:0};byM[k].tot++;if(c.stato==='firmato')byM[k].firm++;});
-    document.getElementById('t2').innerHTML=Object.keys(byM).length?Object.keys(byM).sort().reverse().map(k=>{const s=byM[k];const[y,m]=k.split('-');const nm=new Date(y,m-1).toLocaleDateString('it-IT',{month:'long',year:'numeric'});return'<tr><td>'+nm+'</td><td>'+s.tot+'</td><td>'+s.firm+'</td><td>'+badge((s.tot?(s.firm/s.tot*100).toFixed(1):0)+'%','success')+'</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;padding:30px">Nessun dato</td></tr>';
-  }catch(ex){document.getElementById('t1').innerHTML='<tr><td colspan="5" style="color:#EF4444;padding:20px">Errore: '+ex.message+'</td></tr>';}
+    document.getElementById("k1").textContent=list.length;
+    document.getElementById("k2").textContent=firm.length;
+    document.getElementById("k3").textContent=list.length?(firm.length/list.length*100).toFixed(1)+"%":"0%";
+    document.getElementById("k4").textContent="€"+Math.round(imp).toLocaleString("it-IT");
+    const byT={};list.forEach(c=>{const t=c.tipo_contratto||"modulo adesione";if(!byT[t])byT[t]={tot:0,firm:0};byT[t].tot++;if(c.stato==="firmato")byT[t].firm++;});
+    document.getElementById("t1").innerHTML=Object.entries(byT).length?Object.entries(byT).map(([t,s])=>"<tr><td>"+t+"</td><td>"+s.tot+"</td><td>"+s.firm+"</td><td>"+(s.tot-s.firm)+"</td><td>"+badge((s.tot?(s.firm/s.tot*100).toFixed(1):0)+"%","success")+"</td></tr>").join(""):"<tr><td colspan=\"5\" style=\"text-align:center;padding:30px;color:#94A3B8\">Nessun dato</td></tr>";
+    const byM={};list.forEach(c=>{const d=new Date(c.created_at);const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");if(!byM[k])byM[k]={tot:0,firm:0};byM[k].tot++;if(c.stato==="firmato")byM[k].firm++;});
+    document.getElementById("t2").innerHTML=Object.keys(byM).length?Object.keys(byM).sort().reverse().map(k=>{const s=byM[k];const[y,m]=k.split("-");const nm=new Date(y,m-1).toLocaleDateString("it-IT",{month:"long",year:"numeric"});return"<tr><td>"+nm+"</td><td>"+s.tot+"</td><td>"+s.firm+"</td><td>"+badge((s.tot?(s.firm/s.tot*100).toFixed(1):0)+"%","success")+"</td></tr>";}).join(""):"<tr><td colspan=\"4\" style=\"text-align:center;padding:30px;color:#94A3B8\">Nessun dato</td></tr>";
+  }catch(ex){document.getElementById("t1").innerHTML="<tr><td colspan=\"5\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
 }
 load();
 </script>

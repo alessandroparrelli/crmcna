@@ -1,34 +1,30 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRM CNA - Dashboard</title>
-  <link rel="stylesheet" href="css/main.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CNA - Dashboard</title>
+<link rel="stylesheet" href="css/crm.css">
 </head>
 <body>
-
 <header>
   <div class="header-left">
-    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
-    <h1 class="header-title">CRM CNA</h1>
+    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA Roma">
+    <span class="header-title">CRM CNA</span>
   </div>
   <div class="header-right-wrap">
-    <div class="user-chip">
-      <span id="user-name">...</span>
-      <div class="user-dot"></div>
-    </div>
-    <button class="btn btn-logout" onclick="doLogout()">Esci</button>
+    <div class="user-chip"><span id="uname"></span><div class="user-dot"></div></div>
+    <button class="btn btn-logout" onclick="logout()">Esci</button>
   </div>
 </header>
 
-<div class="tabs-bar" id="nav-tabs">
+<div class="tabs-bar">
   <button class="tab-btn active">📊 Dashboard</button>
-  <button class="tab-btn" onclick="go('pages/statistiche.html')">📈 Statistiche</button>
-  <button class="tab-btn" id="t-comm" style="display:none" onclick="go('pages/commerciali.html')">👥 Commerciali</button>
-  <button class="tab-btn" id="t-prov" style="display:none" onclick="go('pages/provvigioni.html')">💰 Provvigioni</button>
-  <button class="tab-btn" id="t-tipi" style="display:none" onclick="go('pages/tipi-contratto.html')">📋 Tipi Contratto</button>
-  <button class="tab-btn" onclick="go('pages/campagne.html')">🎯 Campagne</button>
+  <button class="tab-btn" onclick="location.href='pages/statistiche.html'">📈 Statistiche</button>
+  <button class="tab-btn" id="t-comm" style="display:none" onclick="location.href='pages/commerciali.html'">👥 Commerciali</button>
+  <button class="tab-btn" id="t-prov" style="display:none" onclick="location.href='pages/provvigioni.html'">💰 Provvigioni</button>
+  <button class="tab-btn" id="t-tipi" style="display:none" onclick="location.href='pages/tipi-contratto.html'">📋 Tipi Contratto</button>
+  <button class="tab-btn" onclick="location.href='pages/campagne.html'">🎯 Campagne</button>
 </div>
 
 <div class="page active">
@@ -36,7 +32,7 @@
   <div class="filters-bar">
     <div class="filter-group">
       <label>STATO</label>
-      <select class="form-input" id="f-stato" onchange="renderTable()">
+      <select class="form-input" id="f-stato" onchange="render()">
         <option value="">Tutti</option>
         <option value="firmato">Firmato</option>
         <option value="in_attesa">In attesa</option>
@@ -44,12 +40,12 @@
     </div>
     <div class="filter-group" id="f-u-wrap" style="display:none">
       <label>UTENTE</label>
-      <select class="form-input" id="f-utente" onchange="renderTable()">
+      <select class="form-input" id="f-utente" onchange="render()">
         <option value="">Tutti</option>
       </select>
     </div>
     <div class="filter-actions">
-      <button class="btn btn-secondary" onclick="resetFiltri()">✕ Reset</button>
+      <button class="btn btn-secondary" onclick="resetF()">✕ Reset</button>
     </div>
   </div>
 
@@ -63,7 +59,7 @@
   <div class="table-card">
     <div class="table-card-header">
       <h3>📄 Tutti i Contratti da Signature</h3>
-      <span id="cnt-badge">caricamento...</span>
+      <span id="cnt">0 contratti</span>
     </div>
     <div class="table-wrap">
       <table class="data-table">
@@ -78,7 +74,7 @@
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Caricamento dati...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr>
         </tbody>
       </table>
     </div>
@@ -87,127 +83,71 @@
 </div>
 
 <script>
-const URL = 'https://ohahuqlfzqckaevaffbt.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020';
+const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
 
-// ---- AUTH ----
-const sess = localStorage.getItem('cna_crm');
-if (!sess) { location.href = 'index.html'; }
-const me = JSON.parse(sess);
+// AUTH
+const _s=localStorage.getItem("cna_crm");
+if(!_s){location.href="index.html";}
+const me=JSON.parse(_s);
+document.getElementById("uname").textContent=me.nome+" "+me.cognome+" ("+me.ruolo+")";
+if(me.ruolo==="admin"||me.ruolo==="supervisore"){document.getElementById("t-comm").style.display="";document.getElementById("t-prov").style.display="";}
+if(me.ruolo==="admin"){document.getElementById("t-tipi").style.display="";document.getElementById("f-u-wrap").style.display="";}
+function logout(){localStorage.removeItem("cna_crm");location.href="index.html";}
 
-document.getElementById('user-name').textContent = me.nome + ' ' + me.cognome;
-
-if (me.ruolo === 'admin' || me.ruolo === 'supervisore') {
-  document.getElementById('t-comm').style.display = '';
-  document.getElementById('t-prov').style.display = '';
+async function dbGet(ep){
+  const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();return Array.isArray(d)?d:[];
 }
-if (me.ruolo === 'admin') {
-  document.getElementById('t-tipi').style.display = '';
-  document.getElementById('f-u-wrap').style.display = '';
-}
+function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
+function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return'<span class="badge" style="background:'+bg+';color:'+fg+'">'+t+"</span>";}
 
-function go(url) { location.href = url; }
-function doLogout() { localStorage.removeItem('cna_crm'); location.href = 'index.html'; }
+let contratti=[],utenti=[];
 
-// ---- API ----
-async function get(ep) {
-  const r = await fetch(URL + '/rest/v1/' + ep, {
-    headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
-  });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const d = await r.json();
-  return Array.isArray(d) ? d : [];
-}
-
-function fmtDate(s) {
-  if (!s) return '-';
-  return new Date(s).toLocaleDateString('it-IT');
-}
-
-// ---- DATA ----
-let contratti = [];
-let utenti = [];
-
-async function init() {
-  try {
-    // Carica utenti per nomi e filtro
-    utenti = await get('cna_users?select=id,nome,cognome&attivo=eq.true&order=nome');
-
-    if (me.ruolo === 'admin') {
-      const sel = document.getElementById('f-utente');
-      utenti.forEach(u => {
-        const o = document.createElement('option');
-        o.value = u.id;
-        o.textContent = u.nome + ' ' + u.cognome;
-        sel.appendChild(o);
-      });
+async function init(){
+  try{
+    utenti=await dbGet("cna_users?select=id,nome,cognome&attivo=eq.true&order=nome");
+    if(me.ruolo==="admin"){
+      const sel=document.getElementById("f-utente");
+      utenti.forEach(u=>{const o=document.createElement("option");o.value=u.id;o.textContent=u.nome+" "+u.cognome;sel.appendChild(o);});
     }
-
-    // Carica contratti
-    let ep = 'contratti?select=id,ragione_sociale,nome,cognome,stato,tipo_contratto,created_by,created_at&order=created_at.desc';
-    if (me.ruolo !== 'admin') ep += '&created_by=eq.' + me.id;
-    contratti = await get(ep);
-
-    renderTable();
-  } catch(e) {
-    document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:40px;color:#EF4444">Errore: ' + e.message + '</td></tr>';
+    let ep="contratti?select=id,ragione_sociale,nome,cognome,stato,tipo_contratto,created_by,created_at&order=created_at.desc";
+    if(me.ruolo!=="admin")ep+="&created_by=eq."+me.id;
+    contratti=await dbGet(ep);
+    render();
+  }catch(ex){
+    document.getElementById("tbody").innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#EF4444">Errore: '+ex.message+"</td></tr>";
   }
 }
 
-function renderTable() {
-  let list = contratti.slice();
-
-  const fStato = document.getElementById('f-stato').value;
-  if (fStato) list = list.filter(c => c.stato === fStato);
-
-  if (me.ruolo === 'admin') {
-    const fUtente = document.getElementById('f-utente').value;
-    if (fUtente) list = list.filter(c => c.created_by === fUtente);
-  }
-
-  // KPI
-  const ora = new Date();
-  const inizioMese = new Date(ora.getFullYear(), ora.getMonth(), 1);
-  document.getElementById('k1').textContent = list.length;
-  document.getElementById('k2').textContent = list.filter(c => c.stato === 'firmato').length;
-  document.getElementById('k3').textContent = list.filter(c => c.stato !== 'firmato').length;
-  document.getElementById('k4').textContent = list.filter(c => new Date(c.created_at) >= inizioMese).length;
-  document.getElementById('cnt-badge').textContent = list.length + ' contratti';
-
-  // Tabella
-  const tbody = document.getElementById('tbody');
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Nessun contratto trovato</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = list.map(c => {
-    const u = utenti.find(x => x.id === c.created_by);
-    const nome = ((c.nome || '') + ' ' + (c.cognome || '')).trim() || '-';
-    const utente = u ? u.nome + ' ' + u.cognome : '-';
-    const data = fmtDate(c.created_at);
-    const tipo = c.tipo_contratto || 'modulo adesione';
-    const stato = c.stato || 'in attesa';
-    const badgeCls = stato === 'firmato' ? 'success' : 'warning';
-
-    return '<tr>' +
-      '<td><strong>' + (c.ragione_sociale || '-') + '</strong></td>' +
-      '<td>' + nome + '</td>' +
-      '<td><span class="badge info">' + tipo + '</span></td>' +
-      '<td>' + data + '</td>' +
-      '<td>' + utente + '</td>' +
-      '<td><span class="badge ' + badgeCls + '">' + stato + '</span></td>' +
-      '</tr>';
-  }).join('');
+function render(){
+  let list=contratti.slice();
+  const fS=document.getElementById("f-stato").value;
+  if(fS)list=list.filter(c=>c.stato===fS);
+  if(me.ruolo==="admin"){const fU=document.getElementById("f-utente").value;if(fU)list=list.filter(c=>c.created_by===fU);}
+  const now=new Date(),sm=new Date(now.getFullYear(),now.getMonth(),1);
+  document.getElementById("k1").textContent=list.length;
+  document.getElementById("k2").textContent=list.filter(c=>c.stato==="firmato").length;
+  document.getElementById("k3").textContent=list.filter(c=>c.stato!=="firmato").length;
+  document.getElementById("k4").textContent=list.filter(c=>new Date(c.created_at)>=sm).length;
+  document.getElementById("cnt").textContent=list.length+" contratti";
+  const tbody=document.getElementById("tbody");
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Nessun contratto</td></tr>';return;}
+  tbody.innerHTML=list.map(c=>{
+    const u=utenti.find(x=>x.id===c.created_by);
+    const nome=((c.nome||"")+" "+(c.cognome||"")).trim()||"-";
+    return"<tr>"+
+      "<td><strong>"+(c.ragione_sociale||"-")+"</strong></td>"+
+      "<td>"+nome+"</td>"+
+      "<td>"+badge(c.tipo_contratto||"modulo adesione","info")+"</td>"+
+      "<td>"+fDate(c.created_at)+"</td>"+
+      "<td>"+(u?u.nome+" "+u.cognome:"-")+"</td>"+
+      "<td>"+badge(c.stato||"in attesa",c.stato==="firmato"?"success":"warning")+"</td>"+
+      "</tr>";
+  }).join("");
 }
-
-function resetFiltri() {
-  document.getElementById('f-stato').value = '';
-  if (me.ruolo === 'admin') document.getElementById('f-utente').value = '';
-  renderTable();
-}
-
+function resetF(){document.getElementById("f-stato").value="";if(me.ruolo==="admin")document.getElementById("f-utente").value="";render();}
 init();
 </script>
 </body>

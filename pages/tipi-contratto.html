@@ -1,88 +1,108 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRM CNA - Tipi Contratto</title>
-  <link rel="stylesheet" href="../css/main.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CNA - Tipi Contratto</title>
+<link rel="stylesheet" href="../css/crm.css">
 </head>
 <body>
-<div id="app">
-  <div id="hdr"></div>
-  <div class="tabs-bar" id="nav"></div>
-  <div class="page active">
-    <h2 style="margin-bottom:20px">📋 Tipi Contratto e Provvigioni</h2>
-    <div class="upload-card" style="margin-bottom:24px">
-      <h3 class="upload-title">➕ Nuovo Tipo Contratto</h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:16px;align-items:flex-end">
-        <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Nome</label>
-          <input type="text" class="form-input" id="n-nome" placeholder="es. Modulo Adesione"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Provvigione %</label>
-          <input type="number" class="form-input" id="n-perc" placeholder="10" min="0" max="100" step="0.1"></div>
-        <button class="btn btn-primary" onclick="aggiungi()">➕ Aggiungi</button>
-      </div>
+<header>
+  <div class="header-left">
+    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
+    <span class="header-title">CRM CNA</span>
+  </div>
+  <div class="header-right-wrap">
+    <div class="user-chip"><span id="uname"></span><div class="user-dot"></div></div>
+    <button class="btn btn-logout" onclick="logout()">Esci</button>
+  </div>
+</header>
+<div class="tabs-bar">
+  <button class="tab-btn" onclick="location.href='../dashboard.html'">📊 Dashboard</button>
+  <button class="tab-btn" onclick="location.href='statistiche.html'">📈 Statistiche</button>
+  <button class="tab-btn" id="t-comm" onclick="location.href='commerciali.html'">👥 Commerciali</button>
+  <button class="tab-btn" id="t-prov" onclick="location.href='provvigioni.html'">💰 Provvigioni</button>
+  <button class="tab-btn active" id="t-tipi">📋 Tipi Contratto</button>
+  <button class="tab-btn" onclick="location.href='campagne.html'">🎯 Campagne</button>
+</div>
+<div class="page active">
+  <h2 style="margin-bottom:20px;font-size:20px;font-weight:800">📋 Tipi Contratto e Provvigioni</h2>
+  <div class="upload-card">
+    <div class="upload-title">➕ Nuovo Tipo Contratto</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div class="filter-group"><label>Nome Tipo Contratto</label><input type="text" class="form-input" id="n-nome" placeholder="es. Modulo Adesione"></div>
+      <div class="filter-group"><label>Provvigione %</label><input type="number" class="form-input" id="n-perc" placeholder="10" min="0" max="100" step="0.1" style="max-width:120px"></div>
+      <button class="btn btn-primary" onclick="aggiungi()">➕ Aggiungi</button>
     </div>
-    <div class="table-card">
-      <div class="table-card-header"><h3>📋 Elenco Tipi</h3><span id="cnt">0</span></div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Nome</th><th>Provvigione %</th><th>Data Creazione</th><th>Azioni</th></tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
+  </div>
+  <div class="table-card">
+    <div class="table-card-header"><h3>📋 Elenco Tipi</h3><span id="cnt">0</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Nome</th><th>Provvigione %</th><th>Data Creazione</th><th>Azioni</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="4" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
-<script src="../js/crm.js"></script>
 <script>
-const me = Auth.check('../index.html');
-if (me.ruolo !== 'admin') { location.href = '../dashboard.html'; }
-document.getElementById('hdr').innerHTML = buildHeader(me);
-document.getElementById('nav').innerHTML = buildNav('📋 Tipi Contratto', '../');
 
-let tipi = [], rules = [];
-
-async function load() {
-  tipi = await api('contract_types?select=*&order=created_at.desc');
-  rules = await api('commission_rules?select=*');
-  document.getElementById('cnt').textContent = tipi.length + ' tipi';
-  const tbody = document.getElementById('tbody');
-  if (!tipi.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px">Nessun tipo definito</td></tr>'; return; }
-  tbody.innerHTML = tipi.map(t => {
-    const rule = rules.find(r => r.tipo_contratto === t.nome);
-    const perc = rule ? rule.percentuale : '-';
-    return '<tr>' +
-      '<td><strong>' + t.nome + '</strong></td>' +
-      '<td>' + badge(perc + '%', 'success') + '</td>' +
-      '<td>' + fmt_date(t.created_at) + '</td>' +
-      '<td><button class="btn btn-danger" onclick="elimina(\'' + t.id + '\',\'' + t.nome + '\')">🗑️</button></td>' +
-      '</tr>';
-  }).join('');
+const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
+const _s=localStorage.getItem("cna_crm");if(!_s){location.href="../index.html";}
+const me=JSON.parse(_s);
+document.getElementById("uname").textContent=me.nome+" "+me.cognome;
+if(me.ruolo==="admin"||me.ruolo==="supervisore"){var _e=document.getElementById("t-comm");if(_e)_e.style.display="";_e=document.getElementById("t-prov");if(_e)_e.style.display="";}
+if(me.ruolo==="admin"){var _e=document.getElementById("t-tipi");if(_e)_e.style.display="";}
+async function dbGet(ep){const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();return Array.isArray(d)?d:[];}
+async function dbPost(ep,b){const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const d=await r.json();return Array.isArray(d)?d:[];}
+async function dbPatch(ep,b){await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});}
+async function dbDel(ep){await fetch(SB+"/rest/v1/"+ep,{method:"DELETE",headers:{"apikey":SK,"Authorization":"Bearer "+SK}});}
+function fDate(s){if(!s)return"-";return new Date(s).toLocaleDateString("it-IT");}
+function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFractionDigits:2});}
+function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
+function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
+if(me.ruolo!=="admin"){location.href="../dashboard.html";}
+let tipi=[],rules=[];
+async function load(){
+  try{
+    tipi=await dbGet("contract_types?select=*&order=created_at.desc");
+    rules=await dbGet("commission_rules?select=*");
+    document.getElementById("cnt").textContent=tipi.length+" tipi";
+    const tbody=document.getElementById("tbody");
+    if(!tipi.length){tbody.innerHTML="<tr><td colspan=\"4\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun tipo definito</td></tr>";return;}
+    tbody.innerHTML=tipi.map(t=>{
+      const rule=rules.find(r=>r.tipo_contratto===t.nome);
+      const perc=rule?rule.percentuale:"-";
+      return"<tr>"+
+        "<td><strong>"+t.nome+"</strong></td>"+
+        "<td>"+badge(perc+"%","success")+"</td>"+
+        "<td>"+fDate(t.created_at)+"</td>"+
+        "<td><button class=\"btn btn-danger\" onclick=\"elimina('"+t.id+"','"+t.nome.replace(/'/g,"\\'"  )+"')\">🗑️ Elimina</button></td>"+
+        "</tr>";
+    }).join("");
+  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"4\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
 }
-
-async function aggiungi() {
-  const nome = document.getElementById('n-nome').value.trim();
-  const perc = parseFloat(document.getElementById('n-perc').value);
-  if (!nome) { alert('Inserisci il nome'); return; }
-  if (isNaN(perc) || perc < 0 || perc > 100) { alert('Inserisci percentuale valida'); return; }
-  try {
-    await api('contract_types', 'POST', { nome, created_by: me.id });
-    await api('commission_rules', 'POST', { tipo_contratto: nome, percentuale: perc, created_by: me.id });
-    document.getElementById('n-nome').value = '';
-    document.getElementById('n-perc').value = '';
+async function aggiungi(){
+  const nome=document.getElementById("n-nome").value.trim();
+  const perc=parseFloat(document.getElementById("n-perc").value);
+  if(!nome){alert("Inserisci il nome");return;}
+  if(isNaN(perc)||perc<0||perc>100){alert("Percentuale non valida (0-100)");return;}
+  try{
+    await dbPost("contract_types",{nome,created_by:me.id});
+    await dbPost("commission_rules",{tipo_contratto:nome,percentuale:perc,created_by:me.id});
+    document.getElementById("n-nome").value="";document.getElementById("n-perc").value="";
     load();
-  } catch(ex) { alert('Errore: ' + ex.message); }
+  }catch(ex){alert("Errore: "+ex.message);}
 }
-
-async function elimina(id, nome) {
-  if (!confirm('Eliminare "' + nome + '"?')) return;
-  try {
-    await api('commission_rules?tipo_contratto=eq.' + encodeURIComponent(nome), 'DELETE');
-    await api('contract_types?id=eq.' + id, 'DELETE');
+async function elimina(id,nome){
+  if(!confirm("Eliminare \""+nome+"\"?"))return;
+  try{
+    await dbDel("commission_rules?tipo_contratto=eq."+encodeURIComponent(nome));
+    await dbDel("contract_types?id=eq."+id);
     load();
-  } catch(ex) { alert('Errore: ' + ex.message); }
+  }catch(ex){alert("Errore: "+ex.message);}
 }
-
 load();
 </script>
 </body>

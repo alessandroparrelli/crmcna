@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRM CNA - Login</title>
-  <link rel="stylesheet" href="css/main.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CNA - Login</title>
+<link rel="stylesheet" href="css/crm.css">
 </head>
 <body>
 <div id="login-page">
@@ -15,57 +15,40 @@
     <h2 class="login-title">CRM CNA</h2>
     <p class="login-sub">Accedi con le tue credenziali</p>
     <div id="err" class="login-error"></div>
-    <form id="frm" autocomplete="on">
+    <form id="frm">
       <div class="form-group">
         <label>Email</label>
-        <input type="text" id="email" class="form-input" placeholder="email" autocomplete="username">
+        <input type="text" id="email" class="form-input" placeholder="email@esempio.com">
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="pwd" class="form-input" placeholder="••••••••" autocomplete="current-password">
+        <input type="password" id="pwd" class="form-input" placeholder="••••••••">
       </div>
-      <button type="submit" class="btn-login" id="btn">Accedi</button>
+      <button type="submit" id="btn" class="btn-login">Accedi</button>
     </form>
   </div>
 </div>
 <script>
-const URL = 'https://ohahuqlfzqckaevaffbt.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020';
-
-if (localStorage.getItem('cna_crm')) location.href = 'dashboard.html';
-
-async function sha256(s) {
-  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-
-document.getElementById('frm').addEventListener('submit', async function(e) {
+const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
+if(localStorage.getItem("cna_crm"))location.href="dashboard.html";
+async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");}
+document.getElementById("frm").addEventListener("submit",async function(e){
   e.preventDefault();
-  const err = document.getElementById('err');
-  const btn = document.getElementById('btn');
-  const email = document.getElementById('email').value.trim();
-  const pwd = document.getElementById('pwd').value;
-  if (!email || !pwd) { err.textContent='Inserisci email e password'; err.style.display='block'; return; }
-  err.style.display = 'none';
-  btn.disabled = true;
-  btn.textContent = 'Accesso in corso...';
-  try {
-    const hash = await sha256(pwd);
-    const r = await fetch(URL+'/rest/v1/cna_users?email=eq.'+encodeURIComponent(email)+'&password_sha256=eq.'+hash+'&attivo=eq.true&select=id,nome,cognome,email,ruolo', {
-      headers: { 'apikey': KEY, 'Authorization': 'Bearer '+KEY }
-    });
-    if (!r.ok) throw new Error('Errore server');
-    const users = await r.json();
-    if (!users || !users.length) throw new Error('Credenziali non valide');
-    const u = users[0];
-    localStorage.setItem('cna_crm', JSON.stringify({id:u.id,nome:u.nome,cognome:u.cognome,email:u.email,ruolo:u.ruolo}));
-    location.href = 'dashboard.html';
-  } catch(ex) {
-    err.textContent = ex.message;
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Accedi';
-  }
+  const err=document.getElementById("err"),btn=document.getElementById("btn");
+  const email=document.getElementById("email").value.trim();
+  const pwd=document.getElementById("pwd").value;
+  if(!email||!pwd){err.textContent="Inserisci email e password";err.style.display="block";return;}
+  err.style.display="none";btn.disabled=true;btn.textContent="Accesso in corso...";
+  try{
+    const hash=await sha256(pwd);
+    const r=await fetch(SB+"/rest/v1/cna_users?email=eq."+encodeURIComponent(email)+"&password_sha256=eq."+hash+"&attivo=eq.true&select=id,nome,cognome,email,ruolo",{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
+    if(!r.ok)throw new Error("Errore server");
+    const u=await r.json();
+    if(!u||!u.length)throw new Error("Credenziali non valide");
+    localStorage.setItem("cna_crm",JSON.stringify({id:u[0].id,nome:u[0].nome,cognome:u[0].cognome,email:u[0].email,ruolo:u[0].ruolo}));
+    location.href="dashboard.html";
+  }catch(ex){err.textContent=ex.message;err.style.display="block";btn.disabled=false;btn.textContent="Accedi";}
 });
 </script>
 </body>
