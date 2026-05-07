@@ -9,7 +9,7 @@
 <body>
 <header>
   <div class="header-left">
-    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
+    <div class="logo-fallback">CNA</div>
     <span class="header-title">CRM CNA</span>
   </div>
   <div class="header-right-wrap">
@@ -20,7 +20,7 @@
 <div class="tabs-bar">
   <button class="tab-btn" onclick="location.href='../dashboard.html'">📊 Dashboard</button>
   <button class="tab-btn" onclick="location.href='statistiche.html'">📈 Statistiche</button>
-  <button class="tab-btn active" id="t-comm">👥 Commerciali</button>
+  <button class="tab-btn" id="t-comm" onclick="location.href='commerciali.html'">👥 Commerciali</button>
   <button class="tab-btn active" id="t-prov">💰 Provvigioni</button>
   <button class="tab-btn" id="t-tipi" style="display:none" onclick="location.href='tipi-contratto.html'">📋 Tipi Contratto</button>
   <button class="tab-btn" onclick="location.href='campagne.html'">🎯 Campagne</button>
@@ -41,8 +41,8 @@
     <div class="table-card-header"><h3>💰 Provvigioni per Commerciale</h3></div>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Commerciale</th><th>Contratti Validati</th><th>Importo Totale</th><th>% Provvigione</th><th>Provvigione €</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="5" style="text-align:center;padding:40px;color:#94A3B8">Seleziona un mese</td></tr></tbody>
+        <thead><tr><th>Commerciale</th><th>Contratti Firmati</th><th>Importo Totale</th><th>% Provvigione</th><th>Provvigione €</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="5" style="text-align:center;padding:40px;color:#94A3B8">Seleziona un mese per calcolare</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -67,16 +67,16 @@ function logout(){localStorage.removeItem("cna_crm");location.href="../index.htm
 if(me.ruolo!=="admin"&&me.ruolo!=="supervisore"){location.href="../dashboard.html";}
 const now=new Date();
 document.getElementById("f-mese").value=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
-let comms=[],rules=[];
+let comms=[],tipiContratto=[];
 async function init(){
   try{
     comms=await dbGet("cna_users?ruolo=eq.commerciale&attivo=eq.true&select=id,nome,cognome&order=nome");
-    rules=await dbGet("commission_rules?select=*");
+    tipiContratto=await dbGet("contract_types?select=name,base_commission_pct&is_active=eq.true");
     document.getElementById("k4").textContent=comms.length;
     const sel=document.getElementById("f-comm");
     comms.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.nome+" "+c.cognome;sel.appendChild(o);});
     load();
-  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"5\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
+  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"5\" style=\"color:#EF4444;padding:20px\">Errore init: "+ex.message+"</td></tr>";}
 }
 async function load(){
   const mese=document.getElementById("f-mese").value;if(!mese)return;
@@ -88,13 +88,22 @@ async function load(){
   try{
     const rows=[];
     for(const comm of filtered){
-      const cs=await dbGet("contratti?created_by=eq."+comm.id+"&validato=eq.true&created_at=gte."+start+"&created_at=lte."+end+"&select=tipo_contratto,quota_primo_anno_importo");
+      // Usa stato=firmato invece di validato (campo non esiste)
+      const cs=await dbGet("contratti?created_by=eq."+comm.id+"&stato=eq.firmato&created_at=gte."+start+"&created_at=lte."+end+"&select=tipo_contratto,quota_primo_anno_importo");
       if(!cs.length)continue;
       let totImp=0,totProv=0;
-      cs.forEach(c=>{const imp=parseFloat(c.quota_primo_anno_importo||0);totImp+=imp;const rule=rules.find(r=>r.tipo_contratto===c.tipo_contratto);const perc=rule?rule.percentuale:10;totProv+=imp*perc/100;});
+      cs.forEach(c=>{
+        const imp=parseFloat(c.quota_primo_anno_importo||0);
+        totImp+=imp;
+        // Cerca percentuale da contract_types
+        const tipo=tipiContratto.find(t=>(t.name||"").toLowerCase()===(c.tipo_contratto||"").toLowerCase());
+        const perc=tipo?parseFloat(tipo.base_commission_pct||10):10;
+        totProv+=imp*perc/100;
+      });
       rows.push({comm,n:cs.length,imp:totImp,prov:totProv,perc:totImp>0?(totProv/totImp*100).toFixed(1):0});
     }
-    const totP=rows.reduce((s,r)=>s+r.prov,0),totC=rows.reduce((s,r)=>s+r.n,0);
+    const totP=rows.reduce((s,r)=>s+r.prov,0);
+    const totC=rows.reduce((s,r)=>s+r.n,0);
     document.getElementById("k1").textContent=fEur(totP);
     document.getElementById("k2").textContent=totC;
     document.getElementById("k3").textContent=fEur(rows.length?totP/rows.length:0);

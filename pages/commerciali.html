@@ -9,7 +9,7 @@
 <body>
 <header>
   <div class="header-left">
-    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
+    <div class="logo-fallback">CNA</div>
     <span class="header-title">CRM CNA</span>
   </div>
   <div class="header-right-wrap">
@@ -33,29 +33,29 @@
       <select class="form-input" id="f-comm" onchange="render()"><option value="">Tutti</option></select>
     </div>
     <div class="filter-group">
-      <label>VALIDAZIONE</label>
-      <select class="form-input" id="f-val" onchange="render()">
+      <label>STATO</label>
+      <select class="form-input" id="f-stato" onchange="render()">
         <option value="">Tutti</option>
-        <option value="0">Da validare</option>
-        <option value="1">Validato</option>
+        <option value="firmato">Firmato</option>
+        <option value="in_attesa">In attesa</option>
       </select>
     </div>
     <div class="filter-actions">
-      <button class="btn btn-secondary" onclick="document.getElementById('f-comm').value='';document.getElementById('f-val').value='';render()">✕ Reset</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('f-comm').value='';document.getElementById('f-stato').value='';render()">✕ Reset</button>
     </div>
   </div>
   <div class="kpi-strip">
     <div class="kpi-card c1"><div class="kpi-label">Totale</div><div class="kpi-value" id="k1">—</div></div>
-    <div class="kpi-card c2"><div class="kpi-label">Da Validare</div><div class="kpi-value" id="k2">—</div></div>
-    <div class="kpi-card c3"><div class="kpi-label">Validati</div><div class="kpi-value" id="k3">—</div></div>
+    <div class="kpi-card c2"><div class="kpi-label">Firmati</div><div class="kpi-value" id="k2">—</div></div>
+    <div class="kpi-card c3"><div class="kpi-label">In Attesa</div><div class="kpi-value" id="k3">—</div></div>
     <div class="kpi-card c4"><div class="kpi-label">Commerciali</div><div class="kpi-value" id="k4">—</div></div>
   </div>
   <div class="table-card">
     <div class="table-card-header"><h3>📄 Contratti Commerciali</h3><span id="cnt">0</span></div>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Ragione Sociale</th><th>Tipo</th><th>Data</th><th>Commerciale</th><th>Stato</th><th>Validazione</th><th>Azioni</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="7" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
+        <thead><tr><th>Ragione Sociale</th><th>Tipo</th><th>Data</th><th>Commerciale</th><th>Stato</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="5" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -85,38 +85,33 @@ async function init(){
     document.getElementById("k4").textContent=comms.length;
     const sel=document.getElementById("f-comm");
     comms.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.nome+" "+c.cognome;sel.appendChild(o);});
-    const ids=comms.map(c=>c.id);
-    if(ids.length)contratti=await dbGet("contratti?select=id,ragione_sociale,tipo_contratto,created_at,stato,validato,created_by&created_by=in.("+ids.join(",")+")"+"&order=created_at.desc");
+    if(comms.length){
+      const ids=comms.map(c=>c.id).join(",");
+      contratti=await dbGet("contratti?select=id,ragione_sociale,tipo_contratto,created_at,stato,created_by&created_by=in.("+ids+")&order=created_at.desc");
+    }
     render();
-  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"7\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
+  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"5\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
 }
 function render(){
   let list=contratti.slice();
   const fc=document.getElementById("f-comm").value;if(fc)list=list.filter(c=>c.created_by===fc);
-  const fv=document.getElementById("f-val").value;if(fv==="0")list=list.filter(c=>!c.validato);else if(fv==="1")list=list.filter(c=>c.validato);
+  const fs=document.getElementById("f-stato").value;if(fs)list=list.filter(c=>c.stato===fs);
   document.getElementById("k1").textContent=list.length;
-  document.getElementById("k2").textContent=list.filter(c=>!c.validato).length;
-  document.getElementById("k3").textContent=list.filter(c=>c.validato).length;
+  document.getElementById("k2").textContent=list.filter(c=>c.stato==="firmato").length;
+  document.getElementById("k3").textContent=list.filter(c=>c.stato!=="firmato").length;
   document.getElementById("cnt").textContent=list.length+" contratti";
   const tbody=document.getElementById("tbody");
-  if(!list.length){tbody.innerHTML="<tr><td colspan=\"7\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun contratto</td></tr>";return;}
+  if(!list.length){tbody.innerHTML="<tr><td colspan=\"5\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun contratto</td></tr>";return;}
   tbody.innerHTML=list.map(c=>{
     const u=comms.find(x=>x.id===c.created_by);
     return"<tr>"+
       "<td><strong>"+(c.ragione_sociale||"-")+"</strong></td>"+
-      "<td>"+(c.tipo_contratto||"-")+"</td>"+
+      "<td>"+(c.tipo_contratto||"modulo adesione")+"</td>"+
       "<td>"+fDate(c.created_at)+"</td>"+
       "<td>"+(u?u.nome+" "+u.cognome:"-")+"</td>"+
-      "<td>"+badge(c.stato||"attesa",c.stato==="firmato"?"success":"warning")+"</td>"+
-      "<td>"+badge(c.validato?"Validato":"Da validare",c.validato?"success":"warning")+"</td>"+
-      "<td>"+(!c.validato?"<button class=\"btn btn-primary\" onclick=\"valida('"+c.id+"')\">✓ Valida</button>":"-")+"</td>"+
+      "<td>"+badge(c.stato||"in attesa",c.stato==="firmato"?"success":"warning")+"</td>"+
       "</tr>";
   }).join("");
-}
-async function valida(id){
-  if(!confirm("Confermi la validazione?"))return;
-  try{await dbPatch("contratti?id=eq."+id,{validato:true});const c=contratti.find(x=>x.id===id);if(c)c.validato=true;render();}
-  catch(ex){alert("Errore: "+ex.message);}
 }
 init();
 </script>

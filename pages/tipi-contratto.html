@@ -9,7 +9,7 @@
 <body>
 <header>
   <div class="header-left">
-    <img src="https://www.cnaroma.it/wp-content/uploads/2024/01/logo-cna-roma.png" class="logo-img" alt="CNA">
+    <div class="logo-fallback">CNA</div>
     <span class="header-title">CRM CNA</span>
   </div>
   <div class="header-right-wrap">
@@ -39,8 +39,8 @@
     <div class="table-card-header"><h3>📋 Elenco Tipi</h3><span id="cnt">0</span></div>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Nome</th><th>Provvigione %</th><th>Data Creazione</th><th>Azioni</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="4" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
+        <thead><tr><th>Nome</th><th>Provvigione %</th><th>Attivo</th><th>Data Creazione</th><th>Azioni</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="5" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -63,25 +63,25 @@ function fEur(v){return"€ "+parseFloat(v||0).toLocaleString("it-IT",{minimumFr
 function badge(t,c){const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF"};const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");return"<span class=\"badge\" style=\"background:"+bg+";color:"+fg+"\">"+t+"</span>";}
 function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
 if(me.ruolo!=="admin"){location.href="../dashboard.html";}
-let tipi=[],rules=[];
+let tipi=[];
 async function load(){
   try{
     tipi=await dbGet("contract_types?select=*&order=created_at.desc");
-    rules=await dbGet("commission_rules?select=*");
     document.getElementById("cnt").textContent=tipi.length+" tipi";
     const tbody=document.getElementById("tbody");
-    if(!tipi.length){tbody.innerHTML="<tr><td colspan=\"4\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun tipo definito</td></tr>";return;}
+    if(!tipi.length){tbody.innerHTML="<tr><td colspan=\"5\" style=\"text-align:center;padding:40px;color:#94A3B8\">Nessun tipo definito</td></tr>";return;}
     tbody.innerHTML=tipi.map(t=>{
-      const rule=rules.find(r=>r.tipo_contratto===t.nome);
-      const perc=rule?rule.percentuale:"-";
+      const nome=t.name||t.nome||"-";
+      const perc=t.base_commission_pct||"-";
       return"<tr>"+
-        "<td><strong>"+t.nome+"</strong></td>"+
+        "<td><strong>"+nome+"</strong></td>"+
         "<td>"+badge(perc+"%","success")+"</td>"+
+        "<td>"+badge(t.is_active?"Attivo":"Disattivo",t.is_active?"success":"warning")+"</td>"+
         "<td>"+fDate(t.created_at)+"</td>"+
-        "<td><button class=\"btn btn-danger\" onclick=\"elimina('"+t.id+"','"+t.nome.replace(/'/g,"\\'"  )+"')\">🗑️ Elimina</button></td>"+
+        "<td><button class=\"btn btn-danger\" onclick=\"elimina('"+t.id+"','"+nome.replace(/'/g,"\'")+"')\">🗑️ Elimina</button></td>"+
         "</tr>";
     }).join("");
-  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"4\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
+  }catch(ex){document.getElementById("tbody").innerHTML="<tr><td colspan=\"5\" style=\"color:#EF4444;padding:20px\">Errore: "+ex.message+"</td></tr>";}
 }
 async function aggiungi(){
   const nome=document.getElementById("n-nome").value.trim();
@@ -89,8 +89,7 @@ async function aggiungi(){
   if(!nome){alert("Inserisci il nome");return;}
   if(isNaN(perc)||perc<0||perc>100){alert("Percentuale non valida (0-100)");return;}
   try{
-    await dbPost("contract_types",{nome,created_by:me.id});
-    await dbPost("commission_rules",{tipo_contratto:nome,percentuale:perc,created_by:me.id});
+    await dbPost("contract_types",{name:nome,base_commission_pct:perc,is_active:true});
     document.getElementById("n-nome").value="";document.getElementById("n-perc").value="";
     load();
   }catch(ex){alert("Errore: "+ex.message);}
@@ -98,8 +97,7 @@ async function aggiungi(){
 async function elimina(id,nome){
   if(!confirm("Eliminare \""+nome+"\"?"))return;
   try{
-    await dbDel("commission_rules?tipo_contratto=eq."+encodeURIComponent(nome));
-    await dbDel("contract_types?id=eq."+id);
+    await dbPatch("contract_types?id=eq."+id,{is_active:false});
     load();
   }catch(ex){alert("Errore: "+ex.message);}
 }
