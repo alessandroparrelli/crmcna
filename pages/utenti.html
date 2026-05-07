@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CNA - Gestione Utenti</title>
+<link rel="stylesheet" href="../css/crm.css">
+<style>
+.sub-tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.sub-tab:hover { color: #2563EB; }
+.sub-tab.active { color: #2563EB; border-bottom-color: #2563EB; }
+.user-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ruolo-admin    { background: linear-gradient(135deg,#DC2626,#B91C1C); }
+.ruolo-supervisore { background: linear-gradient(135deg,#D97706,#B45309); }
+.ruolo-commerciale { background: linear-gradient(135deg,#2563EB,#1D4ED8); }
+.ruolo-utente   { background: linear-gradient(135deg,#059669,#047857); }
+.ruolo-operatore { background: linear-gradient(135deg,#7C3AED,#6D28D9); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img src="https://www.cnaroma.it/sites/default/files/80-anni-logo.png" class="logo-img" alt="CNA Roma">
+    <span class="header-title">CRM CNA</span>
+  </div>
+  <div class="header-right-wrap">
+    <div class="user-chip"><span id="uname"></span><div class="user-dot"></div></div>
+    <button class="btn btn-logout" onclick="logout()">Esci</button>
+  </div>
+</header>
+
+<div class="tabs-bar">
+  <button class="tab-btn" onclick="location.href='../dashboard.html'">📊 Dashboard</button>
+  <button class="tab-btn" onclick="location.href='statistiche.html'">📈 Statistiche</button>
+  <button class="tab-btn" onclick="location.href='commerciali.html'">👥 Commerciali</button>
+  <button class="tab-btn" onclick="location.href='provvigioni.html'">💰 Provvigioni</button>
+  <button class="tab-btn" onclick="location.href='tipi-contratto.html'">📋 Tipi Contratto</button>
+  <button class="tab-btn" onclick="location.href='campagne.html'">🎯 Campagne</button>
+  <button class="tab-btn active">👤 Utenti</button>
+</div>
+
+<div class="page active">
+
+  <!-- Sub-tabs -->
+  <div style="display:flex;gap:0;margin-bottom:28px;border-bottom:2px solid #E2E8F0">
+    <button class="sub-tab active" id="st-utenti" onclick="showTab('utenti')">👤 Gestione Utenti</button>
+    <button class="sub-tab" id="st-log" onclick="showTab('log')">📋 Log Accessi</button>
+  </div>
+
+  <!-- ============ TAB UTENTI ============ -->
+  <div id="tab-utenti">
+
+    <!-- Crea nuovo utente -->
+    <div class="upload-card" style="margin-bottom:24px">
+      <div class="upload-title">➕ Crea Nuovo Utente</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;align-items:flex-end">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Nome *</label>
+          <input type="text" class="form-input" id="n-nome" placeholder="Nome">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Cognome *</label>
+          <input type="text" class="form-input" id="n-cogn" placeholder="Cognome">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Email / Username *</label>
+          <input type="text" class="form-input" id="n-email" placeholder="email@cnaroma.it">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Cellulare</label>
+          <input type="text" class="form-input" id="n-cell" placeholder="+39...">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Password *</label>
+          <input type="password" class="form-input" id="n-pwd" placeholder="min 6 caratteri">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:6px">Ruolo *</label>
+          <select class="form-input" id="n-ruolo">
+            <option value="utente">Utente (Op. Telefonico)</option>
+            <option value="operatore">Operatore</option>
+            <option value="commerciale">Commerciale</option>
+            <option value="supervisore">Supervisore</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="height:42px" onclick="creaUtente()">➕ Crea</button>
+      </div>
+    </div>
+
+    <!-- Filtri -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>RUOLO</label>
+        <select class="form-input" id="f-ruolo" onchange="renderUtenti()">
+          <option value="">Tutti i ruoli</option>
+          <option value="admin">Admin</option>
+          <option value="supervisore">Supervisore</option>
+          <option value="commerciale">Commerciale</option>
+          <option value="operatore">Operatore</option>
+          <option value="utente">Utente</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>STATO</label>
+        <select class="form-input" id="f-attivo" onchange="renderUtenti()">
+          <option value="">Tutti</option>
+          <option value="true">Attivi</option>
+          <option value="false">Disattivati</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-secondary" onclick="document.getElementById('f-ruolo').value='';document.getElementById('f-attivo').value='';renderUtenti()">✕ Reset</button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpi-strip">
+      <div class="kpi-card c1"><div class="kpi-label">Utenti Totali</div><div class="kpi-value" id="k1">—</div></div>
+      <div class="kpi-card c2"><div class="kpi-label">Attivi</div><div class="kpi-value" id="k2">—</div></div>
+      <div class="kpi-card c3"><div class="kpi-label">Commerciali</div><div class="kpi-value" id="k3">—</div></div>
+      <div class="kpi-card c4"><div class="kpi-label">Supervisori</div><div class="kpi-value" id="k4">—</div></div>
+    </div>
+
+    <!-- Tabella utenti -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <h3>👤 Elenco Utenti</h3>
+        <span id="cnt-u">0 utenti</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Utente</th>
+              <th>Email</th>
+              <th>Cellulare</th>
+              <th>Ruolo</th>
+              <th>Stato</th>
+              <th>Ultimo Accesso</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-utenti">
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#94A3B8">Caricamento...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB LOG ============ -->
+  <div id="tab-log" style="display:none">
+
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>UTENTE</label>
+        <select class="form-input" id="f-log-utente" onchange="loadLog()">
+          <option value="">Tutti gli utenti</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>ESITO</label>
+        <select class="form-input" id="f-log-esito" onchange="loadLog()">
+          <option value="">Tutti</option>
+          <option value="successo">✅ Successo</option>
+          <option value="fallito">❌ Fallito</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>LIMITE</label>
+        <select class="form-input" id="f-log-limit" onchange="loadLog()">
+          <option value="50">Ultimi 50</option>
+          <option value="100">Ultimi 100</option>
+          <option value="200">Ultimi 200</option>
+          <option value="500">Ultimi 500</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-secondary" onclick="resetLog()">✕ Reset</button>
+      </div>
+    </div>
+
+    <!-- KPI log -->
+    <div class="kpi-strip" id="kpi-log" style="display:none">
+      <div class="kpi-card c1"><div class="kpi-label">Accessi Totali</div><div class="kpi-value" id="kl1">—</div></div>
+      <div class="kpi-card c2"><div class="kpi-label">Successi</div><div class="kpi-value" id="kl2">—</div></div>
+      <div class="kpi-card c3"><div class="kpi-label">Falliti</div><div class="kpi-value" id="kl3">—</div></div>
+      <div class="kpi-card c4"><div class="kpi-label">Utenti Distinti</div><div class="kpi-value" id="kl4">—</div></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <h3>📋 Log Accessi al Sistema</h3>
+        <span id="cnt-log">0 accessi</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data/Ora</th>
+              <th>Utente</th>
+              <th>Email</th>
+              <th>Esito</th>
+              <th>IP</th>
+              <th>Browser</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-log">
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Seleziona filtri e carica i log</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal modifica utente -->
+<div class="modal-overlay" id="modal-utente">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-title">✏️ Modifica Utente</div>
+    <input type="hidden" id="edit-id">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" class="form-input" id="edit-nome">
+      </div>
+      <div class="form-group">
+        <label>Cognome *</label>
+        <input type="text" class="form-input" id="edit-cogn">
+      </div>
+      <div class="form-group">
+        <label>Email / Username *</label>
+        <input type="text" class="form-input" id="edit-email">
+      </div>
+      <div class="form-group">
+        <label>Cellulare</label>
+        <input type="text" class="form-input" id="edit-cell" placeholder="+39...">
+      </div>
+      <div class="form-group">
+        <label>Ruolo *</label>
+        <select class="form-input" id="edit-ruolo">
+          <option value="utente">Utente (Op. Telefonico)</option>
+          <option value="operatore">Operatore</option>
+          <option value="commerciale">Commerciale</option>
+          <option value="supervisore">Supervisore</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Stato</label>
+        <select class="form-input" id="edit-attivo">
+          <option value="true">✅ Attivo</option>
+          <option value="false">🚫 Disattivato</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Nuova Password (lascia vuoto per non cambiare)</label>
+      <input type="password" class="form-input" id="edit-pwd" placeholder="••••••••">
+      <div style="font-size:11px;color:#94A3B8;margin-top:4px">Minimo 6 caratteri. Lascia vuoto per mantenere la password attuale.</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="salvaUtente()">💾 Salva Modifiche</button>
+      <button class="btn btn-secondary" onclick="chiudiModal()">✕ Annulla</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB="https://ohahuqlfzqckaevaffbt.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oYWh1cWxmenFja2FldmFmZmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODI4NzQsImV4cCI6MjA4OTc1ODg3NH0.MG1N3UUIfISDAi_ArFjxN6ZlHJfk5D77vSeE7qZr020";
+
+const _s=localStorage.getItem("cna_crm");
+if(!_s){location.href="../index.html";}
+const me=JSON.parse(_s);
+if(me.ruolo!=="admin"){alert("Accesso riservato agli amministratori");location.href="../dashboard.html";}
+document.getElementById("uname").textContent=me.nome+" "+me.cognome;
+function logout(){localStorage.removeItem("cna_crm");location.href="../index.html";}
+
+async function dbGet(ep){
+  const r=await fetch(SB+"/rest/v1/"+ep,{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
+  if(!r.ok) throw new Error("HTTP "+r.status+": "+await r.text());
+  const d=await r.json();return Array.isArray(d)?d:[];
+}
+async function dbPost(ep,b){
+  const r=await fetch(SB+"/rest/v1/"+ep,{method:"POST",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(b)});
+  if(!r.ok) throw new Error(await r.text());
+  const d=await r.json();return Array.isArray(d)?d:[];
+}
+async function dbPatch(ep,b){
+  const r=await fetch(SB+"/rest/v1/"+ep,{method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},body:JSON.stringify(b)});
+  if(!r.ok) throw new Error(await r.text());
+}
+async function sha256(s){
+  const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function fDate(s,full=false){
+  if(!s)return"-";
+  const d=new Date(s);
+  if(full) return d.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  return d.toLocaleDateString("it-IT");
+}
+function badge(t,c){
+  const m={success:"#D1FAE5|#065F46",warning:"#FEF3C7|#92400E",danger:"#FEE2E2|#991B1B",info:"#DBEAFE|#1E40AF",purple:"#EDE9FE|#5B21B6",orange:"#FEF3C7|#92400E"};
+  const[bg,fg]=(m[c]||"#F1F5F9|#475569").split("|");
+  return'<span class="badge" style="background:'+bg+';color:'+fg+'">'+t+"</span>";
+}
+
+// Config ruoli - 5 ruoli
+const RUOLI={
+  admin:      {label:"Admin",         color:"danger",   avClass:"ruolo-admin"},
+  supervisore:{label:"Supervisore",   color:"warning",  avClass:"ruolo-supervisore"},
+  commerciale:{label:"Commerciale",   color:"info",     avClass:"ruolo-commerciale"},
+  operatore:  {label:"Operatore",     color:"purple",   avClass:"ruolo-operatore"},
+  utente:     {label:"Utente",        color:"success",  avClass:"ruolo-utente"}
+};
+
+let utenti=[];
+
+// ===== SWITCH TAB =====
+function showTab(tab){
+  document.getElementById("tab-utenti").style.display=tab==="utenti"?"block":"none";
+  document.getElementById("tab-log").style.display=tab==="log"?"block":"none";
+  document.getElementById("st-utenti").className="sub-tab"+(tab==="utenti"?" active":"");
+  document.getElementById("st-log").className="sub-tab"+(tab==="log"?" active":"");
+  if(tab==="log") loadLog();
+}
+
+// ===== CARICA UTENTI =====
+async function loadUtenti(){
+  try{
+    utenti=await dbGet("cna_users?select=id,nome,cognome,email,cellulare,ruolo,attivo,last_login&order=ruolo.asc,nome.asc");
+
+    // Popola select log utenti
+    const sel=document.getElementById("f-log-utente");
+    sel.innerHTML='<option value="">Tutti gli utenti</option>'+
+      utenti.map(u=>'<option value="'+u.id+'">'+u.nome+" "+u.cognome+" ("+u.ruolo+")"+"</option>").join("");
+
+    renderUtenti();
+  }catch(ex){
+    document.getElementById("tbody-utenti").innerHTML=
+      '<tr><td colspan="7" style="color:#EF4444;padding:20px">Errore: '+ex.message+"</td></tr>";
+  }
+}
+
+function renderUtenti(){
+  let list=utenti.slice();
+  const fr=document.getElementById("f-ruolo").value;
+  if(fr) list=list.filter(u=>u.ruolo===fr);
+  const fa=document.getElementById("f-attivo").value;
+  if(fa) list=list.filter(u=>String(u.attivo)===fa);
+
+  // KPI
+  document.getElementById("k1").textContent=utenti.length;
+  document.getElementById("k2").textContent=utenti.filter(u=>u.attivo).length;
+  document.getElementById("k3").textContent=utenti.filter(u=>u.ruolo==="commerciale").length;
+  document.getElementById("k4").textContent=utenti.filter(u=>u.ruolo==="supervisore").length;
+  document.getElementById("cnt-u").textContent=list.length+" utenti";
+
+  const tbody=document.getElementById("tbody-utenti");
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#94A3B8">Nessun utente trovato</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=list.map(u=>{
+    const r=RUOLI[u.ruolo]||{label:u.ruolo,color:"",avClass:"ruolo-utente"};
+    const iniziali=(u.nome[0]||"?")+(u.cognome[0]||"?");
+    return "<tr>"+
+      // Colonna utente con avatar
+      "<td>"+
+        "<div style='display:flex;align-items:center;gap:10px'>"+
+          "<div class='user-avatar-sm "+r.avClass+"'>"+iniziali+"</div>"+
+          "<div>"+
+            "<div style='font-weight:600'>"+u.nome+" "+u.cognome+"</div>"+
+          "</div>"+
+        "</div>"+
+      "</td>"+
+      "<td style='color:#64748B'>"+u.email+"</td>"+
+      "<td>"+(u.cellulare||"-")+"</td>"+
+      "<td>"+badge(r.label,r.color)+"</td>"+
+      "<td>"+badge(u.attivo?"Attivo":"Disattivato",u.attivo?"success":"danger")+"</td>"+
+      "<td style='font-size:12px;color:#64748B'>"+fDate(u.last_login,true)+"</td>"+
+      "<td>"+
+        "<div style='display:flex;gap:6px;flex-wrap:wrap'>"+
+          "<button class='btn btn-secondary' onclick='apriEdit("+JSON.stringify(u).replace(/'/g,"&#39;")+")'>✏️ Modifica</button>"+
+          "<button class='btn btn-"+(u.attivo?"danger":"primary")+"' onclick='toggleAttivo(\""+u.id+"\","+u.attivo+")'>"+
+            (u.attivo?"🚫 Disattiva":"✅ Attiva")+
+          "</button>"+
+        "</div>"+
+      "</td>"+
+      "</tr>";
+  }).join("");
+}
+
+// ===== MODIFICA UTENTE =====
+function apriEdit(u){
+  document.getElementById("edit-id").value=u.id;
+  document.getElementById("edit-nome").value=u.nome;
+  document.getElementById("edit-cogn").value=u.cognome;
+  document.getElementById("edit-email").value=u.email;
+  document.getElementById("edit-cell").value=u.cellulare||"";
+  document.getElementById("edit-ruolo").value=u.ruolo;
+  document.getElementById("edit-attivo").value=String(u.attivo);
+  document.getElementById("edit-pwd").value="";
+  document.getElementById("modal-utente").classList.add("open");
+}
+
+async function salvaUtente(){
+  const id=document.getElementById("edit-id").value;
+  const nome=document.getElementById("edit-nome").value.trim();
+  const cogn=document.getElementById("edit-cogn").value.trim();
+  const email=document.getElementById("edit-email").value.trim();
+  const cell=document.getElementById("edit-cell").value.trim();
+  const ruolo=document.getElementById("edit-ruolo").value;
+  const attivo=document.getElementById("edit-attivo").value==="true";
+  const pwd=document.getElementById("edit-pwd").value;
+
+  if(!nome||!cogn||!email){alert("Nome, cognome ed email sono obbligatori");return;}
+  if(pwd&&pwd.length<6){alert("La password deve avere almeno 6 caratteri");return;}
+
+  const updates={nome,cognome:cogn,email,cellulare:cell||null,ruolo,attivo};
+  if(pwd) updates.password_sha256=await sha256(pwd);
+
+  try{
+    await dbPatch("cna_users?id=eq."+id,updates);
+    chiudiModal();
+    await loadUtenti();
+    alert("✅ Utente aggiornato con successo");
+  }catch(ex){alert("Errore: "+ex.message);}
+}
+
+async function toggleAttivo(id,attuale){
+  const u=utenti.find(x=>x.id===id);
+  if(!u)return;
+  const azione=attuale?"disattivare":"riattivare";
+  if(!confirm("Confermi di voler "+azione+" l'utente "+u.nome+" "+u.cognome+"?"))return;
+  try{
+    await dbPatch("cna_users?id=eq."+id,{attivo:!attuale});
+    await loadUtenti();
+  }catch(ex){alert("Errore: "+ex.message);}
+}
+
+function chiudiModal(){
+  document.getElementById("modal-utente").classList.remove("open");
+}
+
+// ===== CREA UTENTE =====
+async function creaUtente(){
+  const nome=document.getElementById("n-nome").value.trim();
+  const cogn=document.getElementById("n-cogn").value.trim();
+  const email=document.getElementById("n-email").value.trim();
+  const cell=document.getElementById("n-cell").value.trim();
+  const pwd=document.getElementById("n-pwd").value;
+  const ruolo=document.getElementById("n-ruolo").value;
+
+  if(!nome||!cogn||!email||!pwd){alert("Compila tutti i campi obbligatori (*)");return;}
+  if(pwd.length<6){alert("La password deve avere almeno 6 caratteri");return;}
+
+  const dup=utenti.find(u=>u.email.toLowerCase()===email.toLowerCase());
+  if(dup){alert("⚠️ Email già in uso da: "+dup.nome+" "+dup.cognome);return;}
+
+  try{
+    const hash=await sha256(pwd);
+    await dbPost("cna_users",[{
+      nome,cognome:cogn,email,
+      cellulare:cell||null,
+      password_sha256:hash,
+      ruolo,attivo:true
+    }]);
+    ["n-nome","n-cogn","n-email","n-cell","n-pwd"].forEach(id=>document.getElementById(id).value="");
+    await loadUtenti();
+    alert("✅ Utente "+nome+" "+cogn+" creato con ruolo: "+RUOLI[ruolo].label);
+  }catch(ex){alert("Errore: "+ex.message);}
+}
+
+// ===== LOG ACCESSI =====
+async function loadLog(){
+  try{
+    document.getElementById("kpi-log").style.display="grid";
+    const limit=document.getElementById("f-log-limit").value;
+    let ep="cna_login_logs?select=*&order=created_at.desc&limit="+limit;
+    const fu=document.getElementById("f-log-utente").value;
+    if(fu) ep+="&user_id=eq."+fu;
+    const fe=document.getElementById("f-log-esito").value;
+    if(fe) ep+="&esito=eq."+fe;
+
+    const logs=await dbGet(ep);
+
+    // KPI log
+    const successi=logs.filter(l=>l.esito==="successo").length;
+    const falliti=logs.filter(l=>l.esito!=="successo").length;
+    const distinti=new Set(logs.map(l=>l.user_id).filter(Boolean)).size;
+    document.getElementById("kl1").textContent=logs.length;
+    document.getElementById("kl2").textContent=successi;
+    document.getElementById("kl3").textContent=falliti;
+    document.getElementById("kl4").textContent=distinti;
+    document.getElementById("cnt-log").textContent=logs.length+" accessi";
+
+    const tbody=document.getElementById("tbody-log");
+    if(!logs.length){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#94A3B8">Nessun log trovato</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML=logs.map(l=>{
+      const ok=l.esito==="successo";
+      // Semplifica user agent
+      let browser="-";
+      if(l.user_agent){
+        if(l.user_agent.includes("iPhone")||l.user_agent.includes("iPad")) browser="📱 iOS";
+        else if(l.user_agent.includes("Android")) browser="📱 Android";
+        else if(l.user_agent.includes("Chrome")) browser="🌐 Chrome";
+        else if(l.user_agent.includes("Safari")) browser="🌐 Safari";
+        else if(l.user_agent.includes("Firefox")) browser="🌐 Firefox";
+        else browser="🖥️ Desktop";
+      }
+      return "<tr>"+
+        "<td style='white-space:nowrap;font-size:12px'>"+fDate(l.created_at,true)+"</td>"+
+        "<td><strong>"+(l.nome_completo||"-")+"</strong></td>"+
+        "<td style='color:#64748B'>"+l.email+"</td>"+
+        "<td>"+badge(ok?"✅ Successo":"❌ Fallito",ok?"success":"danger")+"</td>"+
+        "<td style='font-size:12px'>"+l.ip_address+"</td>"+
+        "<td style='font-size:12px'>"+browser+"</td>"+
+        "</tr>";
+    }).join("");
+  }catch(ex){
+    document.getElementById("tbody-log").innerHTML=
+      '<tr><td colspan="6" style="color:#EF4444;padding:20px">Errore: '+ex.message+"</td></tr>";
+  }
+}
+
+function resetLog(){
+  document.getElementById("f-log-utente").value="";
+  document.getElementById("f-log-esito").value="";
+  document.getElementById("f-log-limit").value="50";
+  loadLog();
+}
+
+// Init
+loadUtenti();
+</script>
+</body>
+</html>
